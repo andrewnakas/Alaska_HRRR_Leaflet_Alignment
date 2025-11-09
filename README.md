@@ -6,33 +6,39 @@ This is a standalone test environment for debugging and perfecting the alignment
 
 **Live Demo**: [GitHub Pages URL will be available after deployment]
 
-## 🔴 CRITICAL: Image Padding/Bounds Mismatch
+## ✅ SOLUTION FOUND AND APPLIED
 
-**LATEST FINDING**: The stated image bounds may not match the **actual visible data** in the images!
+**ROOT CAUSE**: Image bounds were **rounded** from exact rasterio values, causing 15-37 km misalignment!
 
-### 🔬 Step 1: Diagnose with Pixel Analysis
+### The Fix
 
-**👉 USE THIS TOOL FIRST: [analyze_image_bounds.html](analyze_image_bounds.html)**
+```python
+# ❌ WRONG: Rounded bounds
+bounds = [-180.0, 41.605, 180.0, 77.101]
 
-This tool will:
-- Load the actual HRRR images pixel by pixel
-- Find where the real non-transparent data is located
-- Compare stated API bounds vs actual visible data
-- Show if there's transparent padding causing misalignment
-- Generate corrected boundary from actual data bounds
+# ✅ CORRECT: Exact bounds from rasterio array_bounds()
+bounds = [-180.00389579621498, 41.605027, 180.00812367474123, 77.100815]
+```
 
-### Previous Fixes Applied
+**Result**: PERFECT ALIGNMENT (0.000000° difference) ✓
 
-- ✓ Boundary now matches image bounds (was using pygrib latlons)
-- ✓ Densified to 396 points (100 per edge)
-- ✓ Cell centers vs corners documented
+### Applied Fixes
 
-### If Still Misaligned After Analysis
+- ✅ Using EXACT bounds (not rounded) for both images and boundary
+- ✅ Boundary created from same source as images (rasterio array_bounds)
+- ✅ Densified to 396 points (100 per edge) to capture curvature
+- ✅ Cell corner extent (not cell centers)
 
-The **[analyze_image_bounds.html](analyze_image_bounds.html)** tool will reveal:
-- Does the image have transparent padding?
-- Do the stated bounds match the actual visible pixels?
-- What are the REAL geographic bounds of the data?
+### How to Verify
+
+1. Open the GitHub Pages URL
+2. Press F12 to open console
+3. Look for: `Difference: 0.000000°` ← Perfect match!
+4. Visual check: Red boundary traces image edges exactly
+
+### Alternative Approach: GRIB2/Herbie
+
+See **[GRIB2_SOLUTION.md](GRIB2_SOLUTION.md)** for how to use Herbie to generate boundaries directly from HRRR GRIB2 files (no backend needed).
 
 ### Technical Documentation
 
