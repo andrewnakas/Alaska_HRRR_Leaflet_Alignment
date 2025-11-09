@@ -95,31 +95,78 @@ def main():
     print(f"  Shape: {data.shape}")
     print()
 
+    # Get the actual lat/lon coordinates from GRIB2
+    print("Extracting lat/lon coordinates from GRIB2...")
+
+    # Convert lon from 0-360 to -180/+180
+    lon_normalized = np.where(lon_2d > 180, lon_2d - 360, lon_2d)
+
+    # Get the extent of the ACTUAL data
+    lat_min = lat_2d.min()
+    lat_max = lat_2d.max()
+    lon_min = lon_normalized.min()
+    lon_max = lon_normalized.max()
+
+    print(f"GRIB2 grid extent (cell centers):")
+    print(f"  Lat: {lat_min:.6f}° to {lat_max:.6f}°")
+    print(f"  Lon: {lon_min:.6f}° to {lon_max:.6f}°")
+    print()
+
+    # Calculate cell size for extension to cell corners
+    lat_res = np.abs(lat_2d[1, :] - lat_2d[0, :]).mean()
+    lon_res = np.abs(lon_normalized[:, 1:] - lon_normalized[:, :-1]).mean()
+
+    print(f"Estimated cell size:")
+    print(f"  Lat: {lat_res:.6f}°")
+    print(f"  Lon: {lon_res:.6f}°")
+    print()
+
+    # Extend to cell corners
+    target_west = lon_min - lon_res / 2
+    target_east = lon_max + lon_res / 2
+    target_south = lat_min - lat_res / 2
+    target_north = lat_max + lat_res / 2
+
+    print(f"Target WGS84 bounds (cell corners):")
+    print(f"  West:  {target_west:.10f}°")
+    print(f"  South: {target_south:.10f}°")
+    print(f"  East:  {target_east:.10f}°")
+    print(f"  North: {target_north:.10f}°")
+    print()
+
     # Define source CRS (polar stereographic)
-    print("Setting up polar stereographic projection...")
+    print("Setting up reprojection...")
     src_crs = CRS.from_proj4(
         "+proj=stere +lat_0=90 +lon_0=225 +lat_ts=60 +a=6371229 +b=6371229 +units=m +no_defs"
     )
 
-    # Get projection info from dataset if available
-    if hasattr(ds, 'crs_wkt'):
-        print(f"Using CRS from GRIB2: {ds.crs_wkt[:100]}...")
+    # Create a transformer to get native coords
+    from pyproj import Transformer
+    transformer = Transformer.from_crs("EPSG:4326", src_crs, always_xy=True)
 
-    print(f"Source CRS: {src_crs}")
-    print()
+    # Get corner points in native projection
+    x_coords = []
+    y_coords = []
 
-    # Get grid bounds in native projection
-    # HRRR Alaska grid specification
-    # Lower left corner (x, y in meters)
-    x_ll = -2700000.0  # meters
-    y_ll = -1588000.0  # meters
-    resolution = 3000.0  # 3km
+    # Sample points around the edge to get native extent
+    for lat in [target_south, target_north]:
+        for lon in np.linspace(target_west, target_east, 100):
+            x, y = transformer.transform(lon, lat)
+            x_coords.append(x)
+            y_coords.append(y)
 
-    # Calculate bounds in native projection
-    x_ur = x_ll + (nx * resolution)
-    y_ur = y_ll + (ny * resolution)
+    for lon in [target_west, target_east]:
+        for lat in np.linspace(target_south, target_north, 100):
+            x, y = transformer.transform(lon, lat)
+            x_coords.append(x)
+            y_coords.append(y)
 
-    print("Native projection bounds (meters):")
+    x_ll = min(x_coords)
+    x_ur = max(x_coords)
+    y_ll = min(y_coords)
+    y_ur = max(y_coords)
+
+    print(f"Native projection bounds (meters):")
     print(f"  X: {x_ll:.1f} to {x_ur:.1f}")
     print(f"  Y: {y_ll:.1f} to {y_ur:.1f}")
     print()
@@ -163,15 +210,24 @@ def main():
     print("✓ Reprojection complete!")
     print()
 
-    # Get EXACT bounds from reprojected data
-    exact_bounds = array_bounds(dst_height, dst_width, dst_transform)
+    # Use the target bounds we calculated (should match HRRR Alaska domain)
+    exact_bounds = [target_west, target_south, target_east, target_north]
     west, south, east, north = exact_bounds
 
-    print("Reprojected WGS84 bounds:")
+    print("Final WGS84 bounds (HRRR Alaska domain):")
     print(f"  West:  {west:.10f}°")
     print(f"  South: {south:.10f}°")
     print(f"  East:  {east:.10f}°")
     print(f"  North: {north:.10f}°")
+    print()
+
+    # Verify this matches the expected Alaska bounds
+    if south >= 40 and south <= 45 and north >= 75 and north <= 78:
+        print("✓ Bounds look correct for Alaska domain!")
+    else:
+        print("⚠ Warning: Bounds don't match expected Alaska domain")
+        print(f"  Expected: South ~41-42°N, North ~76-77°N")
+        print(f"  Got: South {south:.1f}°N, North {north:.1f}°N")
     print()
 
     print(f"Data range after reprojection: {np.nanmin(dst_data):.2f} to {np.nanmax(dst_data):.2f}")
