@@ -6,14 +6,27 @@ This is a standalone test environment for debugging and perfecting the alignment
 
 **Live Demo**: [GitHub Pages URL will be available after deployment]
 
-## ⚠️ Alignment Issue & Solution
+## 🔴 CRITICAL: Alignment Issue & Root Cause
 
-If the boundary polygon doesn't align with the radar images, see:
-- **[ALIGNMENT_SOLUTION.md](ALIGNMENT_SOLUTION.md)** - Detailed problem analysis and technical solution
+**ACTUAL PROBLEM** (from log analysis):
+The boundary polygon is calculated from **different source data** than the image bounds, resulting in **15-37 km misalignment**!
+
+- Image bounds: `[-180.004, 41.605, 180.008, 77.101]`
+- Boundary extent: `[-179.854, 41.621, 179.643, 77.085]`
+- **They don't match!** ❌
+
+### Quick Fix
+
+Use **[generate_fixed_boundary.html](generate_fixed_boundary.html)** to create a boundary that matches the image bounds exactly.
+
+### Technical Documentation
+
+- **[ACTUAL_ROOT_CAUSE.md](ACTUAL_ROOT_CAUSE.md)** - 🔴 **START HERE** - Log analysis and actual problem
+- **[CRITICAL_FINDING.md](CRITICAL_FINDING.md)** - Boundary vs image bounds mismatch explained
+- **[ALIGNMENT_SOLUTION.md](ALIGNMENT_SOLUTION.md)** - General alignment theory (curved edges, etc.)
 - **[IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md)** - Step-by-step fix implementation
-- **[fix_boundary_js.html](fix_boundary_js.html)** - Browser-based tool to generate corrected boundaries
 
-**TL;DR**: The boundary uses only 4 corner points, but polar stereographic edges are **curved** in WGS84. Solution: Use ~400 densified points (100 per edge) to capture the curvature.
+**Solution**: Create boundary polygon from the **same `array_bounds()`** used for images, not from pygrib latlons.
 
 ## Problem Summary
 
@@ -149,10 +162,13 @@ This ensures seamless coverage when panning across the date line.
 - `.github/workflows/deploy.yml` - GitHub Actions for automatic deployment
 
 ### Solution Documentation
-- `ALIGNMENT_SOLUTION.md` - Comprehensive problem analysis and technical solution
+- `ACTUAL_ROOT_CAUSE.md` - 🔴 **START HERE** - Log analysis revealing the actual problem (bounds mismatch)
+- `CRITICAL_FINDING.md` - Quick summary of boundary vs image bounds discrepancy
+- `generate_fixed_boundary.html` - **IMMEDIATE FIX** - Browser tool to create matching boundary
+- `ALIGNMENT_SOLUTION.md` - General alignment theory (curved edges, densification)
 - `IMPLEMENTATION_GUIDE.md` - Step-by-step implementation guide with code examples
 - `fix_boundary_calculation.py` - Python implementation of corrected boundary calculation
-- `fix_boundary_js.html` - Browser-based tool to generate corrected boundaries (no dependencies)
+- `fix_boundary_js.html` - Alternative browser-based boundary generator
 
 ### Documentation
 - `README.md` - This file

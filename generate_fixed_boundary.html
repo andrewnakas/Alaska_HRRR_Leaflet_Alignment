@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Fix HRRR Alaska Boundary - CRITICAL FIX</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #d00;
+        }
+        .critical {
+            background: #fee;
+            border-left: 4px solid #d00;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #218838;
+        }
+        .download-btn {
+            background: #007bff;
+        }
+        .download-btn:hover {
+            background: #0056b3;
+        }
+        pre {
+            background: #fff;
+            padding: 10px;
+            border: 1px solid #ddd;
+            overflow-x: auto;
+            max-height: 300px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #333;
+            color: white;
+        }
+        .mismatch {
+            background: #fee;
+            font-weight: bold;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔴 CRITICAL: Boundary Bounds Mismatch</h1>
+
+    <div class="critical">
+        <h2>Problem Identified</h2>
+        <p><strong>The boundary polygon doesn't match the image bounds!</strong></p>
+        <p>Your logs show the boundary is <strong>15-37 km smaller</strong> than the actual images.
+        This is why they don't align - they're calculated from different sources.</p>
+    </div>
+
+    <div class="section">
+        <h2>Step 1: Load Current Data</h2>
+        <button onclick="loadAndAnalyze()">Analyze Current Data</button>
+        <div id="analysis"></div>
+    </div>
+
+    <div class="section">
+        <h2>Step 2: Generate Corrected Boundary</h2>
+        <button onclick="generateFix()">Generate Fixed Boundary (Using Image Bounds)</button>
+        <div id="status"></div>
+    </div>
+
+    <div class="section">
+        <h2>Step 3: Download & Test</h2>
+        <button class="download-btn" onclick="downloadFixed()">Download test-data-fixed.json</button>
+        <p>Rename to <code>test-data.json</code> and refresh the map page.</p>
+    </div>
+
+    <div class="section">
+        <h2>Boundary Preview</h2>
+        <pre id="preview"></pre>
+    </div>
+
+    <script>
+        let originalData = null;
+        let fixedData = null;
+
+        async function loadAndAnalyze() {
+            const analysisDiv = document.getElementById('analysis');
+            analysisDiv.innerHTML = '<p>Loading...</p>';
+
+            try {
+                const response = await fetch('test-data.json');
+                originalData = await response.json();
+
+                // Extract bounds
+                const westBounds = originalData.western.bounds;
+                const eastBounds = originalData.eastern.bounds;
+                const boundary = originalData.boundary_polygon;
+
+                // Calculate boundary extent
+                const lats = boundary.map(p => p.lat);
+                const lons = boundary.map(p => p.lon);
+                const boundaryExtent = {
+                    west: Math.min(...lons),
+                    south: Math.min(...lats),
+                    east: Math.max(...lons),
+                    north: Math.max(...lats)
+                };
+
+                // Check for mismatch
+                const westMismatch = Math.abs(westBounds[0] - boundaryExtent.west);
+                const southMismatch = Math.abs(westBounds[1] - boundaryExtent.south);
+                const eastMismatch = Math.abs(westBounds[2] - boundaryExtent.east);
+                const northMismatch = Math.abs(westBounds[3] - boundaryExtent.north);
+
+                const totalMismatch = westMismatch + southMismatch + eastMismatch + northMismatch;
+
+                analysisDiv.innerHTML = `
+                    <h3>Mismatch Analysis</h3>
+                    <table>
+                        <tr>
+                            <th>Edge</th>
+                            <th>Image Bounds</th>
+                            <th>Boundary Extent</th>
+                            <th>Difference (°)</th>
+                        </tr>
+                        <tr class="${westMismatch > 0.01 ? 'mismatch' : ''}">
+                            <td>West</td>
+                            <td>${westBounds[0].toFixed(6)}</td>
+                            <td>${boundaryExtent.west.toFixed(6)}</td>
+                            <td>${westMismatch.toFixed(6)}</td>
+                        </tr>
+                        <tr class="${southMismatch > 0.01 ? 'mismatch' : ''}">
+                            <td>South</td>
+                            <td>${westBounds[1].toFixed(6)}</td>
+                            <td>${boundaryExtent.south.toFixed(6)}</td>
+                            <td>${southMismatch.toFixed(6)}</td>
+                        </tr>
+                        <tr class="${eastMismatch > 0.01 ? 'mismatch' : ''}">
+                            <td>East</td>
+                            <td>${westBounds[2].toFixed(6)}</td>
+                            <td>${boundaryExtent.east.toFixed(6)}</td>
+                            <td>${eastMismatch.toFixed(6)}</td>
+                        </tr>
+                        <tr class="${northMismatch > 0.01 ? 'mismatch' : ''}">
+                            <td>North</td>
+                            <td>${westBounds[3].toFixed(6)}</td>
+                            <td>${boundaryExtent.north.toFixed(6)}</td>
+                            <td>${northMismatch.toFixed(6)}</td>
+                        </tr>
+                        <tr style="font-weight: bold; background: #f0f0f0;">
+                            <td>Total Mismatch</td>
+                            <td colspan="2"></td>
+                            <td>${totalMismatch.toFixed(6)}°</td>
+                        </tr>
+                    </table>
+                    <p><strong>Verdict:</strong> ${totalMismatch > 0.1 ?
+                        '<span class="mismatch">SIGNIFICANT MISMATCH - Fix Required!</span>' :
+                        '<span class="success">Bounds match well</span>'}</p>
+                `;
+
+            } catch (e) {
+                analysisDiv.innerHTML = `<p style="color: red;">Error: ${e.message}</p>`;
+            }
+        }
+
+        function generateFix() {
+            if (!originalData) {
+                alert('Please load and analyze data first!');
+                return;
+            }
+
+            const statusDiv = document.getElementById('status');
+            const previewDiv = document.getElementById('preview');
+
+            statusDiv.innerHTML = '<p>Generating fixed boundary from image bounds...</p>';
+
+            // Use western bounds (which span the full range)
+            const bounds = originalData.western.bounds;
+            const [west, south, east, north] = bounds;
+
+            // Create densified boundary
+            const pointsPerEdge = 100;
+            const boundary = [];
+
+            // Top edge: west to east at north
+            for (let i = 0; i < pointsPerEdge; i++) {
+                const t = i / (pointsPerEdge - 1);
+                const lon = west + t * (east - west);
+                boundary.push({ lat: north, lon: lon });
+            }
+
+            // Right edge: north to south at east
+            for (let i = 1; i < pointsPerEdge; i++) {
+                const t = i / (pointsPerEdge - 1);
+                const lat = north - t * (north - south);
+                boundary.push({ lat: lat, lon: east });
+            }
+
+            // Bottom edge: east to west at south
+            for (let i = 1; i < pointsPerEdge; i++) {
+                const t = i / (pointsPerEdge - 1);
+                const lon = east - t * (east - west);
+                boundary.push({ lat: south, lon: lon });
+            }
+
+            // Left edge: south to north at west
+            for (let i = 1; i < pointsPerEdge - 1; i++) {
+                const t = i / (pointsPerEdge - 1);
+                const lat = south + t * (north - south);
+                boundary.push({ lat: lat, lon: west });
+            }
+
+            // Create fixed data
+            fixedData = {
+                ...originalData,
+                boundary_polygon: boundary,
+                _fix: {
+                    applied: 'boundary_from_image_bounds',
+                    method: 'densified_boundary_matching_image_extent',
+                    points: boundary.length,
+                    source_bounds: bounds,
+                    generated: new Date().toISOString(),
+                    note: 'Boundary now matches image bounds exactly with 100 points per edge'
+                }
+            };
+
+            statusDiv.innerHTML = `
+                <p class="success">✓ Fixed boundary generated!</p>
+                <ul>
+                    <li>Original boundary points: ${originalData.boundary_polygon.length}</li>
+                    <li>Fixed boundary points: ${boundary.length}</li>
+                    <li>Now matches image bounds exactly</li>
+                </ul>
+            `;
+
+            previewDiv.textContent = JSON.stringify({
+                first_point: boundary[0],
+                last_point: boundary[boundary.length - 1],
+                total_points: boundary.length,
+                bounds_used: bounds
+            }, null, 2);
+        }
+
+        function downloadFixed() {
+            if (!fixedData) {
+                alert('Please generate fixed boundary first!');
+                return;
+            }
+
+            const dataStr = JSON.stringify(fixedData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'test-data-fixed.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            alert('✓ Downloaded test-data-fixed.json\n\nNext steps:\n1. Rename to test-data.json\n2. Refresh the map page\n3. Boundary should now align perfectly!');
+        }
+
+        // Auto-load on page load
+        window.addEventListener('load', loadAndAnalyze);
+    </script>
+</body>
+</html>
