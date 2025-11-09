@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>HRRR Alaska - Full Domain</title>
+    <title>HRRR Alaska - Correct Polar Stereographic</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -47,83 +47,116 @@
 <body>
     <div id="map"></div>
     <div class="info-panel">
-        <h3>HRRR Alaska - Full Domain</h3>
+        <h3>HRRR Alaska - Polar Stereo</h3>
         <div id="status">Loading...</div>
         <div style="margin-top: 10px; font-size: 11px; color: #666;">
-            Includes all Alaska + Aleutians<br>
-            Crosses International Date Line
+            Native polar stereographic<br>
+            No distortion, proper dateline handling
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/proj4@2.9.0/dist/proj4.js"></script>
+    <script src="https://unpkg.com/proj4leaflet@1.0.2/src/proj4leaflet.js"></script>
 
     <script>
         console.log('='.repeat(80));
-        console.log('HRRR Alaska - Full Domain (All Data + Aleutians)');
+        console.log('HRRR Alaska - Polar Stereographic Projection');
         console.log('='.repeat(80));
         console.log();
 
-        // Create map
-        var map = L.map('map', {
-            center: [60, -155],
-            zoom: 5,
-            minZoom: 3,
-            maxZoom: 10
-        });
-
-        // Add OpenStreetMap base layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19
-        }).addTo(map);
-
-        // Load HRRR data
-        fetch('test-data.json')
+        // Load native projection data
+        fetch('test-data-native.json')
             .then(response => response.json())
             .then(data => {
                 console.log('Loaded HRRR Alaska data:');
                 console.log('  Method:', data._metadata.method);
                 console.log('  Variable:', data._metadata.variable);
-                console.log('  Date:', data._metadata.date);
                 console.log('  Grid:', data._metadata.grid_shape.join(' x '));
-                console.log('  Longitude span:', data._metadata.longitude_span);
                 console.log();
 
-                // Get bounds
-                var bounds = data.direct.bounds;
-                var west = bounds[0];
-                var south = bounds[1];
-                var east = bounds[2];
-                var north = bounds[3];
-
-                console.log('Image bounds (cropped to Alaska):');
-                console.log('  West:', west.toFixed(2), '°');
-                console.log('  South:', south.toFixed(2), '°');
-                console.log('  East:', east.toFixed(2), '°');
-                console.log('  North:', north.toFixed(2), '°');
-                console.log('  Longitude span:', (east - west).toFixed(1), '° (NOT 360°!)');
+                // Define HRRR Alaska polar stereographic projection
+                var projDef = data.native.crs;
+                console.log('Projection:', projDef);
                 console.log();
 
-                // Add image overlay
-                var imageBounds = [
-                    [south, west],  // Southwest
-                    [north, east]   // Northeast
-                ];
+                proj4.defs('HRRR-AK', projDef);
+
+                // Get native bounds in meters
+                var bounds = data.native.bounds;
+                var x_ll = bounds[0];
+                var y_ll = bounds[1];
+                var x_ur = bounds[2];
+                var y_ur = bounds[3];
+
+                console.log('Native bounds (meters):');
+                console.log('  X:', x_ll.toFixed(0), 'to', x_ur.toFixed(0));
+                console.log('  Y:', y_ll.toFixed(0), 'to', y_ur.toFixed(0));
+                console.log();
+
+                // Calculate scale factors for different zoom levels
+                // HRRR Alaska grid is 3897km x 2757km
+                var gridWidthMeters = x_ur - x_ll;
+                var gridHeightMeters = y_ur - y_ll;
+
+                // Target: fit in ~1000 pixels at zoom 0
+                var pixelsAtZoom0 = 1000;
+                var metersPerPixelZoom0 = gridWidthMeters / pixelsAtZoom0;
+
+                // Create resolution array (each zoom level doubles resolution)
+                var resolutions = [];
+                for (var i = 0; i < 12; i++) {
+                    resolutions.push(metersPerPixelZoom0 / Math.pow(2, i));
+                }
+
+                console.log('Resolution at zoom 0:', resolutions[0].toFixed(1), 'm/pixel');
+                console.log();
+
+                // Define CRS for Leaflet
+                var hrrrCrs = new L.Proj.CRS('HRRR-AK', projDef, {
+                    origin: [x_ll, y_ur],  // Top-left corner
+                    resolutions: resolutions,
+                    bounds: L.bounds([x_ll, y_ll], [x_ur, y_ur])
+                });
+
+                // Create map with native CRS
+                var map = L.map('map', {
+                    crs: hrrrCrs,
+                    center: [0, 0],  // Will be adjusted
+                    zoom: 0,
+                    minZoom: 0,
+                    maxZoom: 11,
+                    maxBounds: [[y_ll, x_ll], [y_ur, x_ur]],
+                    maxBoundsViscosity: 1.0
+                });
+
+                console.log('Map initialized with polar stereographic CRS');
+                console.log();
+
+                // Add HRRR image overlay with native bounds (in projection coordinates)
+                var imageUrl = data.native.image_url;
+                var imageBounds = [[y_ll, x_ll], [y_ur, x_ur]];
 
                 var imageOverlay = L.imageOverlay(
-                    data.direct.image_url,
+                    imageUrl,
                     imageBounds,
                     {
-                        opacity: 0.7,
+                        opacity: 0.8,
                         interactive: false
                     }
                 ).addTo(map);
 
                 console.log('✓ Image overlay added');
+                console.log('  URL:', imageUrl);
+                console.log('  Bounds (meters):', imageBounds);
                 console.log();
 
-                // Add boundary polygon
-                var boundaryCoords = data.boundary_polygon.map(p => [p.lat, p.lon]);
+                // Add boundary polygon (convert lat/lon to projection coordinates)
+                var boundaryCoords = data.boundary_polygon.map(function(p) {
+                    // Convert WGS84 to projection coordinates
+                    var projected = proj4('WGS84', 'HRRR-AK', [p.lon, p.lat]);
+                    return [projected[1], projected[0]]; // [y, x] for Leaflet
+                });
 
                 var boundaryPolygon = L.polygon(boundaryCoords, {
                     color: 'red',
@@ -133,38 +166,11 @@
                 }).addTo(map);
 
                 console.log('✓ Boundary polygon added');
-                console.log('  Points:', data.boundary_polygon.length);
+                console.log('  Points:', boundaryCoords.length);
                 console.log();
 
-                // Verify alignment
-                var lats = data.boundary_polygon.map(p => p.lat);
-                var lons = data.boundary_polygon.map(p => p.lon);
-                var boundary_west = Math.min(...lons);
-                var boundary_south = Math.min(...lats);
-                var boundary_east = Math.max(...lons);
-                var boundary_north = Math.max(...lats);
-
-                console.log('Boundary extent:');
-                console.log('  West:', boundary_west.toFixed(6), '°');
-                console.log('  South:', boundary_south.toFixed(6), '°');
-                console.log('  East:', boundary_east.toFixed(6), '°');
-                console.log('  North:', boundary_north.toFixed(6), '°');
-                console.log();
-
-                var diff = Math.abs(boundary_west - west) +
-                          Math.abs(boundary_south - south) +
-                          Math.abs(boundary_east - east) +
-                          Math.abs(boundary_north - north);
-
-                console.log('Alignment check:', diff.toFixed(6), '° difference');
-                if (diff < 0.001) {
-                    console.log('✓ PERFECT ALIGNMENT!');
-                } else if (diff < 0.01) {
-                    console.log('✓ Good alignment');
-                } else {
-                    console.log('⚠ Alignment could be better');
-                }
-                console.log();
+                // Fit map to bounds
+                map.fitBounds(imageBounds);
 
                 // Update status
                 document.getElementById('status').innerHTML =
@@ -172,15 +178,13 @@
                     'Variable: ' + data._metadata.variable + '<br>' +
                     'Date: ' + data._metadata.date.substring(0, 10) + '<br>' +
                     'Grid: ' + data._metadata.grid_shape.join(' × ') + '<br>' +
-                    'Span: ' + data._metadata.longitude_span + ' (dateline crossing)';
+                    'Projection: Native polar stereographic';
 
                 console.log('='.repeat(80));
                 console.log('SUCCESS!');
-                console.log('Full HRRR Alaska domain - includes all data + Aleutians');
+                console.log('HRRR Alaska displayed in native polar stereographic projection');
+                console.log('Proper dateline handling - no world-spanning');
                 console.log('='.repeat(80));
-
-                // Fit map to data
-                map.fitBounds(imageBounds);
 
             })
             .catch(error => {
