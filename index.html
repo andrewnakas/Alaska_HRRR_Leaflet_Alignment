@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRRR Alaska Alignment Test</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            z-index: 1000;
+            max-width: 300px;
+        }
+        #controls h3 {
+            margin-top: 0;
+        }
+        .control-group {
+            margin: 10px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        .info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        button {
+            padding: 8px 12px;
+            margin: 5px 2px;
+            cursor: pointer;
+        }
+        #status {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            z-index: 1000;
+            font-size: 12px;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="controls">
+        <h3>HRRR Alaska Debug</h3>
+
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="showImages" checked>
+                Show Radar Images
+            </label>
+            <label>
+                <input type="checkbox" id="showBoundary" checked>
+                Show Boundary Polygon
+            </label>
+            <label>
+                <input type="checkbox" id="showBoundaryPoints">
+                Show Boundary Points
+            </label>
+            <label>
+                <input type="checkbox" id="showImageCorners" checked>
+                Show Image Corners
+            </label>
+        </div>
+
+        <div class="control-group">
+            <label>Image Opacity: <span id="opacityValue">70%</span></label>
+            <input type="range" id="opacity" min="0" max="100" value="70">
+        </div>
+
+        <div class="control-group">
+            <button id="zoomToAlaska">Zoom to Alaska</button>
+            <button id="zoomToDateLine">Zoom to Date Line</button>
+            <button id="refreshData">Refresh Data</button>
+        </div>
+
+        <div class="info">
+            <strong>Instructions:</strong><br>
+            • Red polygon = boundary<br>
+            • Red dots = image corners<br>
+            • Blue dots = boundary points<br>
+            • Check alignment at edges
+        </div>
+    </div>
+
+    <div id="status">Loading...</div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Initialize map centered on Alaska
+        const map = L.map('map', {
+            center: [64.0, -152.0],
+            zoom: 4,
+            worldCopyJump: false,
+            maxBounds: [[-90, -360], [90, 360]]
+        });
+
+        // Add base layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            noWrap: false
+        }).addTo(map);
+
+        // Storage for layers
+        let imageLayers = [];
+        let boundaryLayer = null;
+        let cornersLayer = null;
+        let pointsLayer = null;
+
+        // Status display
+        function setStatus(message, isError = false) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = isError ? 'error' : 'success';
+        }
+
+        // Load and display data
+        async function loadData() {
+            setStatus('Loading data...');
+            try {
+                // Try to load from test-data.json first
+                let data;
+                try {
+                    const response = await fetch('test-data.json');
+                    if (!response.ok) throw new Error('test-data.json not found');
+                    data = await response.json();
+                    setStatus('Loaded from test-data.json');
+                } catch (e) {
+                    // Fallback to production API
+                    setStatus('Fetching from production API...');
+                    const response = await fetch('https://get-hrrr-forecast-pxvei6zf7a-uc.a.run.app');
+                    const fullData = await response.json();
+                    data = fullData.alaska;
+                    setStatus('Loaded from production API');
+                }
+
+                displayAlaskaData(data);
+            } catch (error) {
+                console.error('Error loading data:', error);
+                setStatus('Error: ' + error.message, true);
+            }
+        }
+
+        function displayAlaskaData(alaska) {
+            console.log('Alaska data:', alaska);
+
+            // Clear existing layers
+            clearLayers();
+
+            // Create image overlays with date-line wrapping
+            const images = [
+                // Western hemisphere images
+                {
+                    url: alaska.western.image_url,
+                    bounds: [
+                        [alaska.western.bounds[1], alaska.western.bounds[0]], // SW
+                        [alaska.western.bounds[3], alaska.western.bounds[2]]  // NE
+                    ],
+                    label: 'Western (original)'
+                },
+                {
+                    url: alaska.western.image_url,
+                    bounds: [
+                        [alaska.western.bounds[1], alaska.western.bounds[0] + 360],
+                        [alaska.western.bounds[3], alaska.western.bounds[2] + 360]
+                    ],
+                    label: 'Western (wrapped +360)'
+                },
+                // Eastern hemisphere images
+                {
+                    url: alaska.eastern.image_url,
+                    bounds: [
+                        [alaska.eastern.bounds[1], alaska.eastern.bounds[0]],
+                        [alaska.eastern.bounds[3], alaska.eastern.bounds[2]]
+                    ],
+                    label: 'Eastern (original)'
+                },
+                {
+                    url: alaska.eastern.image_url,
+                    bounds: [
+                        [alaska.eastern.bounds[1], alaska.eastern.bounds[0] - 360],
+                        [alaska.eastern.bounds[3], alaska.eastern.bounds[2] - 360]
+                    ],
+                    label: 'Eastern (wrapped -360)'
+                }
+            ];
+
+            // Add image overlays
+            images.forEach(img => {
+                const layer = L.imageOverlay(img.url, img.bounds, {
+                    opacity: 0.7,
+                    interactive: false
+                });
+                layer.label = img.label;
+                imageLayers.push(layer);
+                layer.addTo(map);
+            });
+
+            // Create boundary polygon
+            const boundaryCoords = alaska.boundary_polygon.map(p => [p.lat, p.lon]);
+            boundaryLayer = L.polyline(boundaryCoords, {
+                color: 'red',
+                weight: 2,
+                dashArray: '5, 10',
+                fillOpacity: 0
+            }).addTo(map);
+
+            // Create image corner markers
+            const corners = [];
+            // Western corners
+            corners.push([alaska.western.bounds[1], alaska.western.bounds[0]]); // SW
+            corners.push([alaska.western.bounds[3], alaska.western.bounds[0]]); // NW
+            corners.push([alaska.western.bounds[3], alaska.western.bounds[2]]); // NE
+            corners.push([alaska.western.bounds[1], alaska.western.bounds[2]]); // SE
+            // Eastern corners
+            corners.push([alaska.eastern.bounds[1], alaska.eastern.bounds[0]]); // SW
+            corners.push([alaska.eastern.bounds[3], alaska.eastern.bounds[0]]); // NW
+            corners.push([alaska.eastern.bounds[3], alaska.eastern.bounds[2]]); // NE
+            corners.push([alaska.eastern.bounds[1], alaska.eastern.bounds[2]]); // SE
+
+            cornersLayer = L.layerGroup(
+                corners.map(c => L.circleMarker(c, {
+                    radius: 5,
+                    color: 'red',
+                    fillColor: 'red',
+                    fillOpacity: 1
+                }))
+            ).addTo(map);
+
+            // Create boundary point markers
+            pointsLayer = L.layerGroup(
+                alaska.boundary_polygon.map(p => L.circleMarker([p.lat, p.lon], {
+                    radius: 2,
+                    color: 'blue',
+                    fillColor: 'blue',
+                    fillOpacity: 0.6
+                }))
+            );
+
+            console.log(`Loaded: ${imageLayers.length} images, ${alaska.boundary_polygon.length} boundary points`);
+
+            // Run alignment diagnosis
+            setTimeout(diagnoseAlignment, 1000);
+        }
+
+        function clearLayers() {
+            imageLayers.forEach(l => map.removeLayer(l));
+            imageLayers = [];
+            if (boundaryLayer) map.removeLayer(boundaryLayer);
+            if (cornersLayer) map.removeLayer(cornersLayer);
+            if (pointsLayer) map.removeLayer(pointsLayer);
+        }
+
+        // Log detailed alignment info
+        function diagnoseAlignment() {
+            console.group('Alignment Diagnosis');
+
+            // Check bounds
+            imageLayers.forEach(l => {
+                const bounds = l.getBounds();
+                console.log(l.label, {
+                    south: bounds.getSouth(),
+                    west: bounds.getWest(),
+                    north: bounds.getNorth(),
+                    east: bounds.getEast()
+                });
+            });
+
+            // Check boundary extent
+            if (boundaryLayer) {
+                const bounds = boundaryLayer.getBounds();
+                console.log('Boundary polygon bounds:', {
+                    south: bounds.getSouth(),
+                    west: bounds.getWest(),
+                    north: bounds.getNorth(),
+                    east: bounds.getEast()
+                });
+            }
+
+            console.groupEnd();
+        }
+
+        // Controls
+        document.getElementById('showImages').addEventListener('change', (e) => {
+            imageLayers.forEach(l => {
+                if (e.target.checked) l.addTo(map);
+                else map.removeLayer(l);
+            });
+        });
+
+        document.getElementById('showBoundary').addEventListener('change', (e) => {
+            if (e.target.checked && boundaryLayer) boundaryLayer.addTo(map);
+            else if (boundaryLayer) map.removeLayer(boundaryLayer);
+        });
+
+        document.getElementById('showBoundaryPoints').addEventListener('change', (e) => {
+            if (e.target.checked && pointsLayer) pointsLayer.addTo(map);
+            else if (pointsLayer) map.removeLayer(pointsLayer);
+        });
+
+        document.getElementById('showImageCorners').addEventListener('change', (e) => {
+            if (e.target.checked && cornersLayer) cornersLayer.addTo(map);
+            else if (cornersLayer) map.removeLayer(cornersLayer);
+        });
+
+        document.getElementById('opacity').addEventListener('input', (e) => {
+            const opacity = e.target.value / 100;
+            document.getElementById('opacityValue').textContent = e.target.value + '%';
+            imageLayers.forEach(l => l.setOpacity(opacity));
+        });
+
+        document.getElementById('zoomToAlaska').addEventListener('click', () => {
+            map.setView([64.0, -152.0], 4);
+        });
+
+        document.getElementById('zoomToDateLine').addEventListener('click', () => {
+            map.setView([66.0, 180.0], 5);
+        });
+
+        document.getElementById('refreshData').addEventListener('click', () => {
+            loadData();
+        });
+
+        // Load data on page load
+        loadData();
+    </script>
+</body>
+</html>
