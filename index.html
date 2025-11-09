@@ -99,6 +99,14 @@
                 <input type="checkbox" id="showImageCorners" checked>
                 Show Image Corners
             </label>
+            <label>
+                <input type="checkbox" id="showImageBounds">
+                Show Image Bounds (Blue)
+            </label>
+            <label>
+                <input type="checkbox" id="showGridExtent">
+                Show HRRR Grid Extent (Green)
+            </label>
         </div>
 
         <div class="control-group">
@@ -113,11 +121,15 @@
         </div>
 
         <div class="info">
-            <strong>Instructions:</strong><br>
-            • Red polygon = boundary<br>
+            <strong>Visualization:</strong><br>
+            • Red dashed = boundary polygon<br>
             • Red dots = image corners<br>
-            • Blue dots = boundary points<br>
-            • Check alignment at edges
+            • Blue dashed = image bounds (API)<br>
+            • Green dashed = HRRR grid extent<br>
+            <br>
+            <strong>Check Console (F12) for:</strong><br>
+            • Bounds comparison details<br>
+            • Mismatch warnings
         </div>
     </div>
 
@@ -146,6 +158,8 @@
         let boundaryLayer = null;
         let cornersLayer = null;
         let pointsLayer = null;
+        let imageBoundsLayers = [];
+        let gridExtentLayer = null;
 
         // Status display
         function setStatus(message, isError = false) {
@@ -277,7 +291,78 @@
                 }))
             );
 
+            // Create image bounds visualization (blue rectangles)
+            imageBoundsLayers = [];
+            [alaska.western.bounds, alaska.eastern.bounds].forEach((bounds, idx) => {
+                const [west, south, east, north] = bounds;
+                const rect = L.rectangle(
+                    [[south, west], [north, east]],
+                    {
+                        color: '#0000ff',
+                        weight: 3,
+                        fillOpacity: 0,
+                        dashArray: '10, 5'
+                    }
+                );
+                rect.label = idx === 0 ? 'Western Image Bounds' : 'Eastern Image Bounds';
+                imageBoundsLayers.push(rect);
+            });
+
+            // Create HRRR grid extent visualization (green rectangle)
+            // This shows the maximum possible extent of the HRRR grid
+            const gridWest = alaska.western.bounds[0];
+            const gridSouth = alaska.western.bounds[1];
+            const gridEast = alaska.western.bounds[2];
+            const gridNorth = alaska.western.bounds[3];
+
+            gridExtentLayer = L.rectangle(
+                [[gridSouth, gridWest], [gridNorth, gridEast]],
+                {
+                    color: '#00ff00',
+                    weight: 4,
+                    fillOpacity: 0,
+                    dashArray: '15, 10'
+                }
+            );
+
             console.log(`Loaded: ${imageLayers.length} images, ${alaska.boundary_polygon.length} boundary points`);
+
+            // Log detailed bounds comparison
+            console.group('🔍 BOUNDS COMPARISON');
+            console.log('%cImage Bounds (from API):', 'color: blue; font-weight: bold');
+            console.log('  Western:', alaska.western.bounds);
+            console.log('  Eastern:', alaska.eastern.bounds);
+
+            const bLats = alaska.boundary_polygon.map(p => p.lat);
+            const bLons = alaska.boundary_polygon.map(p => p.lon);
+            const boundaryExtent = [
+                Math.min(...bLons),
+                Math.min(...bLats),
+                Math.max(...bLons),
+                Math.max(...bLats)
+            ];
+
+            console.log('%cBoundary Polygon Extent:', 'color: red; font-weight: bold');
+            console.log('  [West, South, East, North]:', boundaryExtent);
+
+            console.log('%cDifference (Image - Boundary):', 'color: orange; font-weight: bold');
+            console.log('  West:  ' + (alaska.western.bounds[0] - boundaryExtent[0]).toFixed(6) + '°');
+            console.log('  South: ' + (alaska.western.bounds[1] - boundaryExtent[1]).toFixed(6) + '°');
+            console.log('  East:  ' + (alaska.western.bounds[2] - boundaryExtent[2]).toFixed(6) + '°');
+            console.log('  North: ' + (alaska.western.bounds[3] - boundaryExtent[3]).toFixed(6) + '°');
+
+            const totalDiff = Math.abs(alaska.western.bounds[0] - boundaryExtent[0]) +
+                            Math.abs(alaska.western.bounds[1] - boundaryExtent[1]) +
+                            Math.abs(alaska.western.bounds[2] - boundaryExtent[2]) +
+                            Math.abs(alaska.western.bounds[3] - boundaryExtent[3]);
+
+            if (totalDiff > 0.1) {
+                console.log('%c⚠️  MISMATCH DETECTED! Total difference: ' + totalDiff.toFixed(6) + '°', 'color: red; font-weight: bold; font-size: 14px');
+                console.log('%cThe boundary polygon does NOT match the image bounds!', 'color: red; font-weight: bold');
+            } else {
+                console.log('%c✓ Bounds match within tolerance', 'color: green; font-weight: bold');
+            }
+            console.groupEnd();
 
             // Run alignment diagnosis
             setTimeout(diagnoseAlignment, 1000);
@@ -289,6 +374,9 @@
             if (boundaryLayer) map.removeLayer(boundaryLayer);
             if (cornersLayer) map.removeLayer(cornersLayer);
             if (pointsLayer) map.removeLayer(pointsLayer);
+            imageBoundsLayers.forEach(l => map.removeLayer(l));
+            imageBoundsLayers = [];
+            if (gridExtentLayer) map.removeLayer(gridExtentLayer);
         }
 
         // Log detailed alignment info
@@ -341,6 +429,18 @@
         document.getElementById('showImageCorners').addEventListener('change', (e) => {
             if (e.target.checked && cornersLayer) cornersLayer.addTo(map);
             else if (cornersLayer) map.removeLayer(cornersLayer);
+        });
+
+        document.getElementById('showImageBounds').addEventListener('change', (e) => {
+            imageBoundsLayers.forEach(layer => {
+                if (e.target.checked) layer.addTo(map);
+                else map.removeLayer(layer);
+            });
+        });
+
+        document.getElementById('showGridExtent').addEventListener('change', (e) => {
+            if (e.target.checked && gridExtentLayer) gridExtentLayer.addTo(map);
+            else if (gridExtentLayer) map.removeLayer(gridExtentLayer);
         });
 
         document.getElementById('opacity').addEventListener('input', (e) => {
