@@ -250,14 +250,33 @@
                 layer.addTo(map);
             });
 
-            // Create boundary polygon
+            // Create boundary polygon with dateline wrapping
+            // We create 3 copies: original, +360, and -360 to handle dateline properly
             const boundaryCoords = alaska.boundary_polygon.map(p => [p.lat, p.lon]);
-            boundaryLayer = L.polyline(boundaryCoords, {
-                color: 'red',
-                weight: 2,
-                dashArray: '5, 10',
-                fillOpacity: 0
-            }).addTo(map);
+            const boundaryCoords360 = alaska.boundary_polygon.map(p => [p.lat, p.lon + 360]);
+            const boundaryCoordsNeg360 = alaska.boundary_polygon.map(p => [p.lat, p.lon - 360]);
+
+            // Create a layer group with all three boundary copies
+            boundaryLayer = L.layerGroup([
+                L.polyline(boundaryCoords, {
+                    color: 'red',
+                    weight: 2,
+                    dashArray: '5, 10',
+                    fillOpacity: 0
+                }),
+                L.polyline(boundaryCoords360, {
+                    color: 'red',
+                    weight: 2,
+                    dashArray: '5, 10',
+                    fillOpacity: 0
+                }),
+                L.polyline(boundaryCoordsNeg360, {
+                    color: 'red',
+                    weight: 2,
+                    dashArray: '5, 10',
+                    fillOpacity: 0
+                })
+            ]).addTo(map);
 
             // Create image corner markers
             const corners = [];
@@ -291,39 +310,47 @@
                 }))
             );
 
-            // Create image bounds visualization (blue rectangles)
+            // Create image bounds visualization (blue rectangles) with wrapping
             imageBoundsLayers = [];
             [alaska.western.bounds, alaska.eastern.bounds].forEach((bounds, idx) => {
                 const [west, south, east, north] = bounds;
-                const rect = L.rectangle(
-                    [[south, west], [north, east]],
-                    {
-                        color: '#0000ff',
-                        weight: 3,
-                        fillOpacity: 0,
-                        dashArray: '10, 5'
-                    }
-                );
-                rect.label = idx === 0 ? 'Western Image Bounds' : 'Eastern Image Bounds';
-                imageBoundsLayers.push(rect);
+                const label = idx === 0 ? 'Western Image Bounds' : 'Eastern Image Bounds';
+
+                // Create 3 wrapped copies
+                [0, 360, -360].forEach(offset => {
+                    const rect = L.rectangle(
+                        [[south, west + offset], [north, east + offset]],
+                        {
+                            color: '#0000ff',
+                            weight: 3,
+                            fillOpacity: 0,
+                            dashArray: '10, 5'
+                        }
+                    );
+                    rect.label = label + (offset !== 0 ? ` (offset ${offset})` : '');
+                    imageBoundsLayers.push(rect);
+                });
             });
 
-            // Create HRRR grid extent visualization (green rectangle)
+            // Create HRRR grid extent visualization (green rectangle) with wrapping
             // This shows the maximum possible extent of the HRRR grid
             const gridWest = alaska.western.bounds[0];
             const gridSouth = alaska.western.bounds[1];
             const gridEast = alaska.western.bounds[2];
             const gridNorth = alaska.western.bounds[3];
 
-            gridExtentLayer = L.rectangle(
-                [[gridSouth, gridWest], [gridNorth, gridEast]],
-                {
-                    color: '#00ff00',
-                    weight: 4,
-                    fillOpacity: 0,
-                    dashArray: '15, 10'
-                }
-            );
+            // Create 3 wrapped copies
+            gridExtentLayer = L.layerGroup([
+                L.rectangle([[gridSouth, gridWest], [gridNorth, gridEast]], {
+                    color: '#00ff00', weight: 4, fillOpacity: 0, dashArray: '15, 10'
+                }),
+                L.rectangle([[gridSouth, gridWest + 360], [gridNorth, gridEast + 360]], {
+                    color: '#00ff00', weight: 4, fillOpacity: 0, dashArray: '15, 10'
+                }),
+                L.rectangle([[gridSouth, gridWest - 360], [gridNorth, gridEast - 360]], {
+                    color: '#00ff00', weight: 4, fillOpacity: 0, dashArray: '15, 10'
+                })
+            ]);
 
             console.log(`Loaded: ${imageLayers.length} images, ${alaska.boundary_polygon.length} boundary points`);
 
