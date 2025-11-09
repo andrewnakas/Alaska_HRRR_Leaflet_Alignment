@@ -1,6 +1,6 @@
 {
   "western": {
-    "image_url": "https://firebasestorage.googleapis.com/v0/b/tree-sixty.firebasestorage.app/o/radar%2Fhrrr%2F20251109_1800%2Falaska%2Fhrrr_west_0000.webp?alt=media",
+    "image_url": "images/hrrr_west.png",
     "bounds": [
       -180.00389579621498,
       41.605026788668276,
@@ -9,7 +9,7 @@
     ]
   },
   "eastern": {
-    "image_url": "https://firebasestorage.googleapis.com/v0/b/tree-sixty.firebasestorage.app/o/radar%2Fhrrr%2F20251109_1800%2Falaska%2Fhrrr_east_0000.webp?alt=media",
+    "image_url": "images/hrrr_east.png",
     "bounds": [
       -179.98459685009104,
       41.605026788668276,
@@ -1604,17 +1604,12 @@
     }
   ],
   "_metadata": {
-    "generated": "2025-11-09",
-    "method": "densified_rectangle_from_exact_image_bounds",
+    "generated": "2025-11-09T22:30:45.674646Z",
+    "method": "sample_data_with_exact_bounds",
+    "source": "generated_sample_visualization",
     "points_per_edge": 100,
     "total_points": 396,
-    "source_bounds": [
-      -180.00389579621498,
-      41.605026788668276,
-      180.00812367474123,
-      77.10081451458335
-    ],
     "alignment_verified": true,
-    "note": "Boundary created from EXACT rasterio array_bounds (not rounded) for perfect alignment"
+    "note": "Sample HRRR-like visualization with exact bounds for perfect alignment"
   }
 }
