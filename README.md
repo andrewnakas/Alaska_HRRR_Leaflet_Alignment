@@ -6,6 +6,15 @@ This is a standalone test environment for debugging and perfecting the alignment
 
 **Live Demo**: [GitHub Pages URL will be available after deployment]
 
+## ⚠️ Alignment Issue & Solution
+
+If the boundary polygon doesn't align with the radar images, see:
+- **[ALIGNMENT_SOLUTION.md](ALIGNMENT_SOLUTION.md)** - Detailed problem analysis and technical solution
+- **[IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md)** - Step-by-step fix implementation
+- **[fix_boundary_js.html](fix_boundary_js.html)** - Browser-based tool to generate corrected boundaries
+
+**TL;DR**: The boundary uses only 4 corner points, but polar stereographic edges are **curved** in WGS84. Solution: Use ~400 densified points (100 per edge) to capture the curvature.
+
 ## Problem Summary
 
 The HRRR Alaska radar overlay uses **polar stereographic projection** and crosses the **International Date Line**. Images are reprojected from native GRIB2 projection to WGS84, but the boundary polygon should perfectly align with the image overlays on the Leaflet map.
@@ -134,10 +143,19 @@ This ensures seamless coverage when panning across the date line.
 
 ## Files
 
+### Test Harness
 - `index.html` - Main test page with Leaflet map
 - `test-data.json` - Sample HRRR data from production API
-- `README.md` - This documentation
 - `.github/workflows/deploy.yml` - GitHub Actions for automatic deployment
+
+### Solution Documentation
+- `ALIGNMENT_SOLUTION.md` - Comprehensive problem analysis and technical solution
+- `IMPLEMENTATION_GUIDE.md` - Step-by-step implementation guide with code examples
+- `fix_boundary_calculation.py` - Python implementation of corrected boundary calculation
+- `fix_boundary_js.html` - Browser-based tool to generate corrected boundaries (no dependencies)
+
+### Documentation
+- `README.md` - This file
 
 ## Production API
 
