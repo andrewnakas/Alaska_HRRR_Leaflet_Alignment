@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Analyze HRRR Image Actual Data Bounds</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        h1 {
+            color: #4ec9b0;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #252526;
+            border-left: 3px solid #007acc;
+        }
+        canvas {
+            border: 1px solid #3c3c3c;
+            margin: 10px 0;
+        }
+        pre {
+            background: #1e1e1e;
+            padding: 10px;
+            border: 1px solid #3c3c3c;
+            overflow-x: auto;
+        }
+        .highlight {
+            color: #4ec9b0;
+            font-weight: bold;
+        }
+        button {
+            padding: 10px 20px;
+            background: #0e639c;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1177bb;
+        }
+        .result {
+            color: #ce9178;
+        }
+    </style>
+</head>
+<body>
+    <h1>HRRR Alaska Image Data Boundary Analyzer</h1>
+
+    <div class="section">
+        <h2>Purpose</h2>
+        <p>This tool analyzes the actual HRRR images to find where the <span class="highlight">real data</span> is located within the image bounds.</p>
+        <p>The API provides image bounds, but the actual visible data might not fill the entire image!</p>
+    </div>
+
+    <div class="section">
+        <h2>Analysis</h2>
+        <button onclick="analyzeImages()">Analyze Images</button>
+        <button onclick="downloadCorrectedData()">Download Corrected Boundary</button>
+        <div id="status"></div>
+    </div>
+
+    <div class="section">
+        <h2>Western Image</h2>
+        <canvas id="canvasWest"></canvas>
+        <div id="westResults"></div>
+    </div>
+
+    <div class="section">
+        <h2>Eastern Image</h2>
+        <canvas id="canvasEast"></canvas>
+        <div id="eastResults"></div>
+    </div>
+
+    <div class="section">
+        <h2>Corrected Bounds</h2>
+        <pre id="correctedBounds"></pre>
+    </div>
+
+    <script>
+        let testData = null;
+        let actualBounds = null;
+
+        async function loadTestData() {
+            const response = await fetch('test-data.json');
+            testData = await response.json();
+        }
+
+        function findDataBoundingBox(imageData) {
+            const { data, width, height } = imageData;
+
+            let minX = width, maxX = 0;
+            let minY = height, maxY = 0;
+
+            // Scan all pixels for non-transparent ones
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    const alpha = data[idx + 3];
+
+                    // If pixel is not fully transparent
+                    if (alpha > 0) {
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            return { minX, minY, maxX, maxY, width, height };
+        }
+
+        function pixelToBounds(pixelBounds, imageBounds) {
+            const [west, south, east, north] = imageBounds;
+            const { minX, minY, maxX, maxY, width, height } = pixelBounds;
+
+            // Calculate the geographic bounds of the actual data
+            const pixelWidth = (east - west) / width;
+            const pixelHeight = (north - south) / height;
+
+            // Note: Y coordinates are flipped (0 is top, height is bottom)
+            const actualWest = west + minX * pixelWidth;
+            const actualEast = west + (maxX + 1) * pixelWidth;
+            const actualNorth = north - minY * pixelHeight;
+            const actualSouth = north - (maxY + 1) * pixelHeight;
+
+            return [actualWest, actualSouth, actualEast, actualNorth];
+        }
+
+        async function analyzeImage(imageUrl, canvasId, resultsId, imageBounds, label) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+
+                img.onload = () => {
+                    const canvas = document.getElementById(canvasId);
+                    const ctx = canvas.getContext('2d');
+
+                    // Set canvas size to match image
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+
+                    // Draw image
+                    ctx.drawImage(img, 0, 0);
+
+                    // Get image data
+                    const imageData = ctx.getImageData(0, 0, img.width, img.height);
+
+                    // Find bounding box of actual data
+                    const pixelBounds = findDataBoundingBox(imageData);
+
+                    // Convert pixel bounds to geographic bounds
+                    const actualBounds = pixelToBounds(pixelBounds, imageBounds);
+
+                    // Display results
+                    const resultsDiv = document.getElementById(resultsId);
+                    const dataWidth = pixelBounds.maxX - pixelBounds.minX + 1;
+                    const dataHeight = pixelBounds.maxY - pixelBounds.minY + 1;
+                    const coverageX = (100 * dataWidth / pixelBounds.width).toFixed(1);
+                    const coverageY = (100 * dataHeight / pixelBounds.height).toFixed(1);
+
+                    resultsDiv.innerHTML = `
+                        <h3>Image Information</h3>
+                        <p>Image size: ${img.width} × ${img.height} pixels</p>
+
+                        <h3>Stated Bounds (from API)</h3>
+                        <p class="result">West: ${imageBounds[0].toFixed(6)}°</p>
+                        <p class="result">South: ${imageBounds[1].toFixed(6)}°</p>
+                        <p class="result">East: ${imageBounds[2].toFixed(6)}°</p>
+                        <p class="result">North: ${imageBounds[3].toFixed(6)}°</p>
+
+                        <h3>Actual Data Pixels</h3>
+                        <p>X: ${pixelBounds.minX} to ${pixelBounds.maxX} (${dataWidth}px = ${coverageX}%)</p>
+                        <p>Y: ${pixelBounds.minY} to ${pixelBounds.maxY} (${dataHeight}px = ${coverageY}%)</p>
+
+                        <h3>Actual Data Bounds (calculated)</h3>
+                        <p class="highlight">West: ${actualBounds[0].toFixed(6)}°</p>
+                        <p class="highlight">South: ${actualBounds[1].toFixed(6)}°</p>
+                        <p class="highlight">East: ${actualBounds[2].toFixed(6)}°</p>
+                        <p class="highlight">North: ${actualBounds[3].toFixed(6)}°</p>
+
+                        <h3>Difference</h3>
+                        <p>ΔWest: ${(actualBounds[0] - imageBounds[0]).toFixed(6)}°</p>
+                        <p>ΔSouth: ${(actualBounds[1] - imageBounds[1]).toFixed(6)}°</p>
+                        <p>ΔEast: ${(actualBounds[2] - imageBounds[2]).toFixed(6)}°</p>
+                        <p>ΔNorth: ${(actualBounds[3] - imageBounds[3]).toFixed(6)}°</p>
+                    `;
+
+                    // Draw bounding box on canvas
+                    ctx.strokeStyle = '#ff0000';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(
+                        pixelBounds.minX,
+                        pixelBounds.minY,
+                        dataWidth,
+                        dataHeight
+                    );
+
+                    resolve({ label, actualBounds, pixelBounds });
+                };
+
+                img.onerror = reject;
+                img.src = imageUrl;
+            });
+        }
+
+        async function analyzeImages() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = '<p>Loading test data...</p>';
+
+            try {
+                await loadTestData();
+
+                statusDiv.innerHTML = '<p>Analyzing western image...</p>';
+                const westResult = await analyzeImage(
+                    testData.western.image_url,
+                    'canvasWest',
+                    'westResults',
+                    testData.western.bounds,
+                    'western'
+                );
+
+                statusDiv.innerHTML = '<p>Analyzing eastern image...</p>';
+                const eastResult = await analyzeImage(
+                    testData.eastern.image_url,
+                    'canvasEast',
+                    'eastResults',
+                    testData.eastern.bounds,
+                    'eastern'
+                );
+
+                actualBounds = {
+                    western: westResult.actualBounds,
+                    eastern: eastResult.actualBounds
+                };
+
+                // Generate corrected boundary
+                generateCorrectedBoundary(westResult.actualBounds);
+
+                statusDiv.innerHTML = '<p class="highlight">✓ Analysis complete!</p>';
+            } catch (e) {
+                statusDiv.innerHTML = `<p style="color: #f48771;">Error: ${e.message}</p>`;
+                console.error(e);
+            }
+        }
+
+        function generateCorrectedBoundary(actualBounds) {
+            const [west, south, east, north] = actualBounds;
+
+            // Create densified boundary from ACTUAL data bounds
+            const pointsPerEdge = 100;
+            const boundary = [];
+
+            // Top edge
+            for (let i = 0; i < pointsPerEdge; i++) {
+                const t = i / (pointsPerEdge - 1);
+                boundary.push({ lat: north, lon: west + t * (east - west) });
+            }
+
+            // Right edge
+            for (let i = 1; i < pointsPerEdge; i++) {
+                const t = i / (pointsPerEdge - 1);
+                boundary.push({ lat: north - t * (north - south), lon: east });
+            }
+
+            // Bottom edge
+            for (let i = 1; i < pointsPerEdge; i++) {
+                const t = i / (pointsPerEdge - 1);
+                boundary.push({ lat: south, lon: east - t * (east - west) });
+            }
+
+            // Left edge
+            for (let i = 1; i < pointsPerEdge - 1; i++) {
+                const t = i / (pointsPerEdge - 1);
+                boundary.push({ lat: south + t * (north - south), lon: west });
+            }
+
+            const correctedBoundsDiv = document.getElementById('correctedBounds');
+            correctedBoundsDiv.textContent = JSON.stringify({
+                method: 'actual_image_data_bounds',
+                western_actual: actualBounds.western,
+                eastern_actual: actualBounds.eastern,
+                boundary_points: boundary.length,
+                note: 'Boundary calculated from actual visible data in images'
+            }, null, 2);
+
+            // Store for download
+            window.correctedData = {
+                ...testData,
+                western: {
+                    ...testData.western,
+                    bounds: actualBounds.western,
+                    original_bounds: testData.western.bounds
+                },
+                eastern: {
+                    ...testData.eastern,
+                    bounds: actualBounds.eastern,
+                    original_bounds: testData.eastern.bounds
+                },
+                boundary_polygon: boundary,
+                _analysis: {
+                    method: 'image_pixel_analysis',
+                    timestamp: new Date().toISOString(),
+                    note: 'Bounds and boundary calculated from actual visible data pixels'
+                }
+            };
+        }
+
+        function downloadCorrectedData() {
+            if (!window.correctedData) {
+                alert('Please run analysis first!');
+                return;
+            }
+
+            const blob = new Blob([JSON.stringify(window.correctedData, null, 2)],
+                { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'test-data-actual-bounds.json';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            alert('Downloaded test-data-actual-bounds.json!\n\nRename to test-data.json and refresh the map.');
+        }
+
+        // Auto-analyze on load
+        window.addEventListener('load', () => {
+            setTimeout(analyzeImages, 500);
+        });
+    </script>
+</body>
+</html>
