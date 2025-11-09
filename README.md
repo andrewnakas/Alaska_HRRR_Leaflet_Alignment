@@ -36,8 +36,9 @@ The **[analyze_image_bounds.html](analyze_image_bounds.html)** tool will reveal:
 
 ### Technical Documentation
 
-- **[IMAGE_PADDING_ISSUE.md](IMAGE_PADDING_ISSUE.md)** - 🔬 **NEW** - Image padding analysis
-- **[ACTUAL_ROOT_CAUSE.md](ACTUAL_ROOT_CAUSE.md)** - Previous: Boundary source mismatch
+- **[REFERENCE_SOLUTIONS.md](REFERENCE_SOLUTIONS.md)** - 📚 **NEW** - Proven solutions from research (code examples, best practices)
+- **[IMAGE_PADDING_ISSUE.md](IMAGE_PADDING_ISSUE.md)** - 🔬 Image padding analysis
+- **[ACTUAL_ROOT_CAUSE.md](ACTUAL_ROOT_CAUSE.md)** - Boundary source mismatch analysis
 - **[CRITICAL_FINDING.md](CRITICAL_FINDING.md)** - Boundary vs image bounds comparison
 - **[ALIGNMENT_SOLUTION.md](ALIGNMENT_SOLUTION.md)** - General alignment theory
 - **[IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md)** - Implementation guide
@@ -176,8 +177,11 @@ This ensures seamless coverage when panning across the date line.
 - `.github/workflows/deploy.yml` - GitHub Actions for automatic deployment
 
 ### Solution Documentation
-- `ACTUAL_ROOT_CAUSE.md` - 🔴 **START HERE** - Log analysis revealing the actual problem (bounds mismatch)
+- `REFERENCE_SOLUTIONS.md` - 📚 **RESEARCH COMPILATION** - Proven code examples from Leaflet/HRRR community
+- `ACTUAL_ROOT_CAUSE.md` - 🔴 Log analysis revealing the actual problem (bounds mismatch)
 - `CRITICAL_FINDING.md` - Quick summary of boundary vs image bounds discrepancy
+- `IMAGE_PADDING_ISSUE.md` - Image padding and pixel analysis approach
+- `analyze_image_bounds.html` - **DIAGNOSTIC TOOL** - Pixel-level analysis of actual data bounds
 - `generate_fixed_boundary.html` - **IMMEDIATE FIX** - Browser tool to create matching boundary
 - `ALIGNMENT_SOLUTION.md` - General alignment theory (curved edges, densification)
 - `IMPLEMENTATION_GUIDE.md` - Step-by-step implementation guide with code examples
