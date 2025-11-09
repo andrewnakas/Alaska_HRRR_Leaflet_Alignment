@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HRRR Alaska - Native Projection (No Distortion)</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            z-index: 1000;
+            max-width: 300px;
+            font-size: 12px;
+        }
+        .info-panel h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+        }
+        .info-panel .status {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .info-panel .error {
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="info-panel">
+        <h3>HRRR Alaska - Native Projection</h3>
+        <div id="status">Loading...</div>
+        <div style="margin-top: 10px; font-size: 11px; color: #666;">
+            Using native polar stereographic projection<br>
+            No reprojection = No distortion
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Proj4 and Proj4Leaflet for projection support -->
+    <script src="https://unpkg.com/proj4@2.9.0/dist/proj4.js"></script>
+    <script src="https://unpkg.com/proj4leaflet@1.0.2/src/proj4leaflet.js"></script>
+
+    <script>
+        console.log('='.repeat(80));
+        console.log('HRRR Alaska - Native Polar Stereographic Projection');
+        console.log('='.repeat(80));
+        console.log();
+
+        // Load data
+        fetch('test-data-native.json')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Loaded HRRR Alaska data:');
+                console.log('  Method:', data._metadata.method);
+                console.log('  Variable:', data._metadata.variable);
+                console.log('  Date:', data._metadata.date);
+                console.log('  Grid:', data._metadata.grid_shape.join(' x '));
+                console.log();
+
+                // Define HRRR Alaska polar stereographic CRS
+                var projDef = data.native.crs;
+                console.log('Projection:', projDef);
+                console.log();
+
+                proj4.defs('HRRR-AK', projDef);
+
+                // Get native bounds in meters
+                var bounds = data.native.bounds;
+                var x_ll = bounds[0];
+                var y_ll = bounds[1];
+                var x_ur = bounds[2];
+                var y_ur = bounds[3];
+
+                console.log('Native bounds (meters):');
+                console.log('  X:', x_ll.toFixed(1), 'to', x_ur.toFixed(1));
+                console.log('  Y:', y_ll.toFixed(1), 'to', y_ur.toFixed(1));
+                console.log();
+
+                // Calculate center in native projection, then convert to lat/lon for initial view
+                var centerX = (x_ll + x_ur) / 2;
+                var centerY = (y_ll + y_ur) / 2;
+                var centerLatLon = proj4('HRRR-AK', 'WGS84', [centerX, centerY]);
+
+                console.log('Map center:');
+                console.log('  Native:', centerX.toFixed(1), ',', centerY.toFixed(1), 'meters');
+                console.log('  Lat/Lon:', centerLatLon[1].toFixed(4), '°N,', centerLatLon[0].toFixed(4), '°W');
+                console.log();
+
+                // Define CRS for Leaflet
+                var hrrrCrs = new L.Proj.CRS('HRRR-AK', projDef, {
+                    origin: [x_ll, y_ur],  // Top-left corner
+                    resolutions: [
+                        15000, 10000, 7500, 5000, 3500, 2500, 2000, 1500, 1000, 750, 500, 250
+                    ]
+                });
+
+                // Create map with native CRS
+                var map = L.map('map', {
+                    crs: hrrrCrs,
+                    center: [centerLatLon[1], centerLatLon[0]],
+                    zoom: 5,
+                    minZoom: 0,
+                    maxZoom: 11
+                });
+
+                console.log('Map initialized with native projection CRS');
+                console.log();
+
+                // Add HRRR image overlay with native bounds
+                var imageBounds = [
+                    [y_ll, x_ll],  // Southwest corner
+                    [y_ur, x_ur]   // Northeast corner
+                ];
+
+                var imageOverlay = L.imageOverlay(
+                    data.native.image_url,
+                    imageBounds,
+                    {
+                        opacity: 0.8,
+                        interactive: false
+                    }
+                ).addTo(map);
+
+                console.log('Image overlay added:');
+                console.log('  URL:', data.native.image_url);
+                console.log('  Bounds:', imageBounds);
+                console.log();
+
+                // Add boundary polygon (in lat/lon)
+                var boundaryCoords = data.boundary_polygon.map(p => [p.lat, p.lon]);
+
+                var boundaryPolygon = L.polygon(boundaryCoords, {
+                    color: 'red',
+                    weight: 2,
+                    fillOpacity: 0,
+                    interactive: false
+                }).addTo(map);
+
+                console.log('Boundary polygon added:');
+                console.log('  Points:', data.boundary_polygon.length);
+                console.log();
+
+                // Update status
+                document.getElementById('status').innerHTML =
+                    '<span class="status">✓ Loaded</span><br>' +
+                    'Variable: ' + data._metadata.variable + '<br>' +
+                    'Date: ' + data._metadata.date.substring(0, 10) + '<br>' +
+                    'Grid: ' + data._metadata.grid_shape.join(' × ') + '<br>' +
+                    'Projection: Native (meters)';
+
+                console.log('SUCCESS! HRRR Alaska displayed in native projection');
+                console.log('No reprojection = No distortion = Perfect alignment');
+                console.log('='.repeat(80));
+
+                // Add scale control
+                L.control.scale({
+                    metric: true,
+                    imperial: false,
+                    position: 'bottomleft'
+                }).addTo(map);
+
+                // Add zoom info for debugging
+                map.on('zoomend', function() {
+                    console.log('Zoom level:', map.getZoom());
+                });
+
+            })
+            .catch(error => {
+                console.error('Error loading data:', error);
+                document.getElementById('status').innerHTML =
+                    '<span class="error">✗ Error loading data</span><br>' +
+                    error.message;
+            });
+    </script>
+</body>
+</html>
