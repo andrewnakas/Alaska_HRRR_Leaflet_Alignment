@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>HRRR Alaska - Cropped WGS84 (No Stretching)</title>
+    <title>HRRR Alaska - Full Domain</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -47,11 +47,11 @@
 <body>
     <div id="map"></div>
     <div class="info-panel">
-        <h3>HRRR Alaska</h3>
+        <h3>HRRR Alaska - Full Domain</h3>
         <div id="status">Loading...</div>
         <div style="margin-top: 10px; font-size: 11px; color: #666;">
-            Cropped to Alaska mainland<br>
-            50° span (not 360°!)
+            Includes all Alaska + Aleutians<br>
+            Crosses International Date Line
         </div>
     </div>
 
@@ -59,7 +59,7 @@
 
     <script>
         console.log('='.repeat(80));
-        console.log('HRRR Alaska - Cropped WGS84 (No World-Wide Stretching)');
+        console.log('HRRR Alaska - Full Domain (All Data + Aleutians)');
         console.log('='.repeat(80));
         console.log();
 
@@ -77,20 +77,20 @@
             maxZoom: 19
         }).addTo(map);
 
-        // Load cropped HRRR data
-        fetch('test-data-cropped.json')
+        // Load HRRR data
+        fetch('test-data.json')
             .then(response => response.json())
             .then(data => {
                 console.log('Loaded HRRR Alaska data:');
                 console.log('  Method:', data._metadata.method);
                 console.log('  Variable:', data._metadata.variable);
                 console.log('  Date:', data._metadata.date);
-                console.log('  Grid:', data._metadata.reprojected_grid_shape.join(' x '));
+                console.log('  Grid:', data._metadata.grid_shape.join(' x '));
                 console.log('  Longitude span:', data._metadata.longitude_span);
                 console.log();
 
                 // Get bounds
-                var bounds = data.cropped.bounds;
+                var bounds = data.direct.bounds;
                 var west = bounds[0];
                 var south = bounds[1];
                 var east = bounds[2];
@@ -111,7 +111,7 @@
                 ];
 
                 var imageOverlay = L.imageOverlay(
-                    data.cropped.image_url,
+                    data.direct.image_url,
                     imageBounds,
                     {
                         opacity: 0.7,
@@ -171,12 +171,12 @@
                     '<span class="status">✓ Loaded</span><br>' +
                     'Variable: ' + data._metadata.variable + '<br>' +
                     'Date: ' + data._metadata.date.substring(0, 10) + '<br>' +
-                    'Grid: ' + data._metadata.reprojected_grid_shape.join(' × ') + '<br>' +
-                    'Span: ' + data._metadata.longitude_span + ' (not 360°!)';
+                    'Grid: ' + data._metadata.grid_shape.join(' × ') + '<br>' +
+                    'Span: ' + data._metadata.longitude_span + ' (dateline crossing)';
 
                 console.log('='.repeat(80));
                 console.log('SUCCESS!');
-                console.log('No world-wide stretching - cropped to Alaska mainland');
+                console.log('Full HRRR Alaska domain - includes all data + Aleutians');
                 console.log('='.repeat(80));
 
                 // Fit map to data
