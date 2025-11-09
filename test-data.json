@@ -11,9 +11,9 @@
   "eastern": {
     "image_url": "images/hrrr_east.png",
     "bounds": [
-      -179.98459685009104,
+      -180.00389579621498,
       41.605026788668276,
-      -180.0056232374288,
+      -180.023895796215,
       77.10081451458335
     ]
   },
@@ -1604,12 +1604,25 @@
     }
   ],
   "_metadata": {
-    "generated": "2025-11-09T22:30:45.674646Z",
-    "method": "sample_data_with_exact_bounds",
-    "source": "generated_sample_visualization",
+    "generated": "2025-11-09T22:37:09.916516Z",
+    "method": "hrrr_alaska_exact_bounds",
+    "source": "HRRR Alaska grid specification",
+    "grib_url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/hrrr/prod/hrrr.20251109/alaska/hrrr.t21z.wrfsfcf00.ak.grib2",
+    "grid_shape": [
+      919,
+      1299
+    ],
+    "projection": "polar_stereographic",
+    "projection_params": {
+      "lat_0": 90,
+      "lon_0": 225,
+      "lat_ts": 60,
+      "ellps": "sphere",
+      "a": 6371229
+    },
     "points_per_edge": 100,
     "total_points": 396,
     "alignment_verified": true,
-    "note": "Sample HRRR-like visualization with exact bounds for perfect alignment"
+    "note": "Using exact HRRR Alaska grid bounds from polar stereographic projection"
   }
 }
