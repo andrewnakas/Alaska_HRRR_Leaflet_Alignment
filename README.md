@@ -6,27 +6,41 @@ This is a standalone test environment for debugging and perfecting the alignment
 
 **Live Demo**: [GitHub Pages URL will be available after deployment]
 
-## 🔴 CRITICAL: Alignment Issue & Root Cause
+## 🔴 CRITICAL: Image Padding/Bounds Mismatch
 
-**ACTUAL PROBLEM** (from log analysis):
-The boundary polygon is calculated from **different source data** than the image bounds, resulting in **15-37 km misalignment**!
+**LATEST FINDING**: The stated image bounds may not match the **actual visible data** in the images!
 
-- Image bounds: `[-180.004, 41.605, 180.008, 77.101]`
-- Boundary extent: `[-179.854, 41.621, 179.643, 77.085]`
-- **They don't match!** ❌
+### 🔬 Step 1: Diagnose with Pixel Analysis
 
-### Quick Fix
+**👉 USE THIS TOOL FIRST: [analyze_image_bounds.html](analyze_image_bounds.html)**
 
-Use **[generate_fixed_boundary.html](generate_fixed_boundary.html)** to create a boundary that matches the image bounds exactly.
+This tool will:
+- Load the actual HRRR images pixel by pixel
+- Find where the real non-transparent data is located
+- Compare stated API bounds vs actual visible data
+- Show if there's transparent padding causing misalignment
+- Generate corrected boundary from actual data bounds
+
+### Previous Fixes Applied
+
+- ✓ Boundary now matches image bounds (was using pygrib latlons)
+- ✓ Densified to 396 points (100 per edge)
+- ✓ Cell centers vs corners documented
+
+### If Still Misaligned After Analysis
+
+The **[analyze_image_bounds.html](analyze_image_bounds.html)** tool will reveal:
+- Does the image have transparent padding?
+- Do the stated bounds match the actual visible pixels?
+- What are the REAL geographic bounds of the data?
 
 ### Technical Documentation
 
-- **[ACTUAL_ROOT_CAUSE.md](ACTUAL_ROOT_CAUSE.md)** - 🔴 **START HERE** - Log analysis and actual problem
-- **[CRITICAL_FINDING.md](CRITICAL_FINDING.md)** - Boundary vs image bounds mismatch explained
-- **[ALIGNMENT_SOLUTION.md](ALIGNMENT_SOLUTION.md)** - General alignment theory (curved edges, etc.)
-- **[IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md)** - Step-by-step fix implementation
-
-**Solution**: Create boundary polygon from the **same `array_bounds()`** used for images, not from pygrib latlons.
+- **[IMAGE_PADDING_ISSUE.md](IMAGE_PADDING_ISSUE.md)** - 🔬 **NEW** - Image padding analysis
+- **[ACTUAL_ROOT_CAUSE.md](ACTUAL_ROOT_CAUSE.md)** - Previous: Boundary source mismatch
+- **[CRITICAL_FINDING.md](CRITICAL_FINDING.md)** - Boundary vs image bounds comparison
+- **[ALIGNMENT_SOLUTION.md](ALIGNMENT_SOLUTION.md)** - General alignment theory
+- **[IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md)** - Implementation guide
 
 ## Problem Summary
 
