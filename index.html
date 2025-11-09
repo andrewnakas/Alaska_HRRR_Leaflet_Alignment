@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
+    <title>HRRR Alaska - Native Projection (No Distortion)</title>
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HRRR Alaska Alignment Test</title>
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -20,476 +20,180 @@
             bottom: 0;
             width: 100%;
         }
-        #controls {
+        .info-panel {
             position: absolute;
             top: 10px;
             right: 10px;
             background: white;
             padding: 15px;
             border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
             z-index: 1000;
             max-width: 300px;
+            font-size: 12px;
         }
-        #controls h3 {
-            margin-top: 0;
+        .info-panel h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
         }
-        .control-group {
-            margin: 10px 0;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
+        .info-panel .status {
+            color: #27ae60;
             font-weight: bold;
         }
-        input[type="checkbox"] {
-            margin-right: 5px;
-        }
-        input[type="range"] {
-            width: 100%;
-        }
-        .info {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
-        button {
-            padding: 8px 12px;
-            margin: 5px 2px;
-            cursor: pointer;
-        }
-        #status {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            z-index: 1000;
-            font-size: 12px;
-        }
-        .error {
-            color: red;
-        }
-        .success {
-            color: green;
+        .info-panel .error {
+            color: #e74c3c;
         }
     </style>
 </head>
 <body>
     <div id="map"></div>
-    <div id="controls">
-        <h3>HRRR Alaska Debug</h3>
-
-        <div class="control-group">
-            <label>
-                <input type="checkbox" id="showImages" checked>
-                Show Radar Images
-            </label>
-            <label>
-                <input type="checkbox" id="showBoundary" checked>
-                Show Boundary Polygon
-            </label>
-            <label>
-                <input type="checkbox" id="showBoundaryPoints">
-                Show Boundary Points
-            </label>
-            <label>
-                <input type="checkbox" id="showImageCorners" checked>
-                Show Image Corners
-            </label>
-            <label>
-                <input type="checkbox" id="showImageBounds">
-                Show Image Bounds (Blue)
-            </label>
-            <label>
-                <input type="checkbox" id="showGridExtent">
-                Show HRRR Grid Extent (Green)
-            </label>
-        </div>
-
-        <div class="control-group">
-            <label>Image Opacity: <span id="opacityValue">70%</span></label>
-            <input type="range" id="opacity" min="0" max="100" value="70">
-        </div>
-
-        <div class="control-group">
-            <button id="zoomToAlaska">Zoom to Alaska</button>
-            <button id="zoomToDateLine">Zoom to Date Line</button>
-            <button id="refreshData">Refresh Data</button>
-        </div>
-
-        <div class="info">
-            <strong>Visualization:</strong><br>
-            • Red dashed = boundary polygon<br>
-            • Red dots = image corners<br>
-            • Blue dashed = image bounds (API)<br>
-            • Green dashed = HRRR grid extent<br>
-            <br>
-            <strong>Check Console (F12) for:</strong><br>
-            • Bounds comparison details<br>
-            • Mismatch warnings
+    <div class="info-panel">
+        <h3>HRRR Alaska - Native Projection</h3>
+        <div id="status">Loading...</div>
+        <div style="margin-top: 10px; font-size: 11px; color: #666;">
+            Using native polar stereographic projection<br>
+            No reprojection = No distortion
         </div>
     </div>
-
-    <div id="status">Loading...</div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+    <!-- Proj4 and Proj4Leaflet for projection support -->
+    <script src="https://unpkg.com/proj4@2.9.0/dist/proj4.js"></script>
+    <script src="https://unpkg.com/proj4leaflet@1.0.2/src/proj4leaflet.js"></script>
+
     <script>
-        // Initialize map centered on Alaska
-        const map = L.map('map', {
-            center: [64.0, -152.0],
-            zoom: 4,
-            worldCopyJump: false,
-            maxBounds: [[-90, -360], [90, 360]]
-        });
+        console.log('='.repeat(80));
+        console.log('HRRR Alaska - Native Polar Stereographic Projection');
+        console.log('='.repeat(80));
+        console.log();
 
-        // Add base layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            noWrap: false
-        }).addTo(map);
+        // Load data
+        fetch('test-data-native.json')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Loaded HRRR Alaska data:');
+                console.log('  Method:', data._metadata.method);
+                console.log('  Variable:', data._metadata.variable);
+                console.log('  Date:', data._metadata.date);
+                console.log('  Grid:', data._metadata.grid_shape.join(' x '));
+                console.log();
 
-        // Storage for layers
-        let imageLayers = [];
-        let boundaryLayer = null;
-        let cornersLayer = null;
-        let pointsLayer = null;
-        let imageBoundsLayers = [];
-        let gridExtentLayer = null;
+                // Define HRRR Alaska polar stereographic CRS
+                var projDef = data.native.crs;
+                console.log('Projection:', projDef);
+                console.log();
 
-        // Status display
-        function setStatus(message, isError = false) {
-            const statusDiv = document.getElementById('status');
-            statusDiv.textContent = message;
-            statusDiv.className = isError ? 'error' : 'success';
-        }
+                proj4.defs('HRRR-AK', projDef);
 
-        // Load and display data
-        async function loadData() {
-            setStatus('Loading data...');
-            try {
-                // Try to load from test-data.json first
-                let data;
-                try {
-                    const response = await fetch('test-data.json');
-                    if (!response.ok) throw new Error('test-data.json not found');
-                    data = await response.json();
-                    setStatus('Loaded from test-data.json');
-                } catch (e) {
-                    // Fallback to production API
-                    setStatus('Fetching from production API...');
-                    const response = await fetch('https://get-hrrr-forecast-pxvei6zf7a-uc.a.run.app');
-                    const fullData = await response.json();
-                    data = fullData.alaska;
-                    setStatus('Loaded from production API');
-                }
+                // Get native bounds in meters
+                var bounds = data.native.bounds;
+                var x_ll = bounds[0];
+                var y_ll = bounds[1];
+                var x_ur = bounds[2];
+                var y_ur = bounds[3];
 
-                displayAlaskaData(data);
-            } catch (error) {
-                console.error('Error loading data:', error);
-                setStatus('Error: ' + error.message, true);
-            }
-        }
+                console.log('Native bounds (meters):');
+                console.log('  X:', x_ll.toFixed(1), 'to', x_ur.toFixed(1));
+                console.log('  Y:', y_ll.toFixed(1), 'to', y_ur.toFixed(1));
+                console.log();
 
-        function displayAlaskaData(alaska) {
-            console.log('Alaska data:', alaska);
+                // Calculate center in native projection, then convert to lat/lon for initial view
+                var centerX = (x_ll + x_ur) / 2;
+                var centerY = (y_ll + y_ur) / 2;
+                var centerLatLon = proj4('HRRR-AK', 'WGS84', [centerX, centerY]);
 
-            // Clear existing layers
-            clearLayers();
+                console.log('Map center:');
+                console.log('  Native:', centerX.toFixed(1), ',', centerY.toFixed(1), 'meters');
+                console.log('  Lat/Lon:', centerLatLon[1].toFixed(4), '°N,', centerLatLon[0].toFixed(4), '°W');
+                console.log();
 
-            // Create image overlays with date-line wrapping
-            const images = [
-                // Western hemisphere images
-                {
-                    url: alaska.western.image_url,
-                    bounds: [
-                        [alaska.western.bounds[1], alaska.western.bounds[0]], // SW
-                        [alaska.western.bounds[3], alaska.western.bounds[2]]  // NE
-                    ],
-                    label: 'Western (original)'
-                },
-                {
-                    url: alaska.western.image_url,
-                    bounds: [
-                        [alaska.western.bounds[1], alaska.western.bounds[0] + 360],
-                        [alaska.western.bounds[3], alaska.western.bounds[2] + 360]
-                    ],
-                    label: 'Western (wrapped +360)'
-                },
-                // Eastern hemisphere images
-                {
-                    url: alaska.eastern.image_url,
-                    bounds: [
-                        [alaska.eastern.bounds[1], alaska.eastern.bounds[0]],
-                        [alaska.eastern.bounds[3], alaska.eastern.bounds[2]]
-                    ],
-                    label: 'Eastern (original)'
-                },
-                {
-                    url: alaska.eastern.image_url,
-                    bounds: [
-                        [alaska.eastern.bounds[1], alaska.eastern.bounds[0] - 360],
-                        [alaska.eastern.bounds[3], alaska.eastern.bounds[2] - 360]
-                    ],
-                    label: 'Eastern (wrapped -360)'
-                }
-            ];
+                // Define CRS for Leaflet
+                var hrrrCrs = new L.Proj.CRS('HRRR-AK', projDef, {
+                    origin: [x_ll, y_ur],  // Top-left corner
+                    resolutions: [
+                        15000, 10000, 7500, 5000, 3500, 2500, 2000, 1500, 1000, 750, 500, 250
+                    ]
+                });
 
-            // Add image overlays
-            images.forEach(img => {
-                const layer = L.imageOverlay(img.url, img.bounds, {
-                    opacity: 0.7,
+                // Create map with native CRS
+                var map = L.map('map', {
+                    crs: hrrrCrs,
+                    center: [centerLatLon[1], centerLatLon[0]],
+                    zoom: 5,
+                    minZoom: 0,
+                    maxZoom: 11
+                });
+
+                console.log('Map initialized with native projection CRS');
+                console.log();
+
+                // Add HRRR image overlay with native bounds
+                var imageBounds = [
+                    [y_ll, x_ll],  // Southwest corner
+                    [y_ur, x_ur]   // Northeast corner
+                ];
+
+                var imageOverlay = L.imageOverlay(
+                    data.native.image_url,
+                    imageBounds,
+                    {
+                        opacity: 0.8,
+                        interactive: false
+                    }
+                ).addTo(map);
+
+                console.log('Image overlay added:');
+                console.log('  URL:', data.native.image_url);
+                console.log('  Bounds:', imageBounds);
+                console.log();
+
+                // Add boundary polygon (in lat/lon)
+                var boundaryCoords = data.boundary_polygon.map(p => [p.lat, p.lon]);
+
+                var boundaryPolygon = L.polygon(boundaryCoords, {
+                    color: 'red',
+                    weight: 2,
+                    fillOpacity: 0,
                     interactive: false
+                }).addTo(map);
+
+                console.log('Boundary polygon added:');
+                console.log('  Points:', data.boundary_polygon.length);
+                console.log();
+
+                // Update status
+                document.getElementById('status').innerHTML =
+                    '<span class="status">✓ Loaded</span><br>' +
+                    'Variable: ' + data._metadata.variable + '<br>' +
+                    'Date: ' + data._metadata.date.substring(0, 10) + '<br>' +
+                    'Grid: ' + data._metadata.grid_shape.join(' × ') + '<br>' +
+                    'Projection: Native (meters)';
+
+                console.log('SUCCESS! HRRR Alaska displayed in native projection');
+                console.log('No reprojection = No distortion = Perfect alignment');
+                console.log('='.repeat(80));
+
+                // Add scale control
+                L.control.scale({
+                    metric: true,
+                    imperial: false,
+                    position: 'bottomleft'
+                }).addTo(map);
+
+                // Add zoom info for debugging
+                map.on('zoomend', function() {
+                    console.log('Zoom level:', map.getZoom());
                 });
-                layer.label = img.label;
-                imageLayers.push(layer);
-                layer.addTo(map);
+
+            })
+            .catch(error => {
+                console.error('Error loading data:', error);
+                document.getElementById('status').innerHTML =
+                    '<span class="error">✗ Error loading data</span><br>' +
+                    error.message;
             });
-
-            // Create boundary polygon with dateline wrapping
-            // We create 3 copies: original, +360, and -360 to handle dateline properly
-            const boundaryCoords = alaska.boundary_polygon.map(p => [p.lat, p.lon]);
-            const boundaryCoords360 = alaska.boundary_polygon.map(p => [p.lat, p.lon + 360]);
-            const boundaryCoordsNeg360 = alaska.boundary_polygon.map(p => [p.lat, p.lon - 360]);
-
-            // Create a layer group with all three boundary copies
-            boundaryLayer = L.layerGroup([
-                L.polyline(boundaryCoords, {
-                    color: 'red',
-                    weight: 2,
-                    dashArray: '5, 10',
-                    fillOpacity: 0
-                }),
-                L.polyline(boundaryCoords360, {
-                    color: 'red',
-                    weight: 2,
-                    dashArray: '5, 10',
-                    fillOpacity: 0
-                }),
-                L.polyline(boundaryCoordsNeg360, {
-                    color: 'red',
-                    weight: 2,
-                    dashArray: '5, 10',
-                    fillOpacity: 0
-                })
-            ]).addTo(map);
-
-            // Create image corner markers
-            const corners = [];
-            // Western corners
-            corners.push([alaska.western.bounds[1], alaska.western.bounds[0]]); // SW
-            corners.push([alaska.western.bounds[3], alaska.western.bounds[0]]); // NW
-            corners.push([alaska.western.bounds[3], alaska.western.bounds[2]]); // NE
-            corners.push([alaska.western.bounds[1], alaska.western.bounds[2]]); // SE
-            // Eastern corners
-            corners.push([alaska.eastern.bounds[1], alaska.eastern.bounds[0]]); // SW
-            corners.push([alaska.eastern.bounds[3], alaska.eastern.bounds[0]]); // NW
-            corners.push([alaska.eastern.bounds[3], alaska.eastern.bounds[2]]); // NE
-            corners.push([alaska.eastern.bounds[1], alaska.eastern.bounds[2]]); // SE
-
-            cornersLayer = L.layerGroup(
-                corners.map(c => L.circleMarker(c, {
-                    radius: 5,
-                    color: 'red',
-                    fillColor: 'red',
-                    fillOpacity: 1
-                }))
-            ).addTo(map);
-
-            // Create boundary point markers
-            pointsLayer = L.layerGroup(
-                alaska.boundary_polygon.map(p => L.circleMarker([p.lat, p.lon], {
-                    radius: 2,
-                    color: 'blue',
-                    fillColor: 'blue',
-                    fillOpacity: 0.6
-                }))
-            );
-
-            // Create image bounds visualization (blue rectangles) with wrapping
-            imageBoundsLayers = [];
-            [alaska.western.bounds, alaska.eastern.bounds].forEach((bounds, idx) => {
-                const [west, south, east, north] = bounds;
-                const label = idx === 0 ? 'Western Image Bounds' : 'Eastern Image Bounds';
-
-                // Create 3 wrapped copies
-                [0, 360, -360].forEach(offset => {
-                    const rect = L.rectangle(
-                        [[south, west + offset], [north, east + offset]],
-                        {
-                            color: '#0000ff',
-                            weight: 3,
-                            fillOpacity: 0,
-                            dashArray: '10, 5'
-                        }
-                    );
-                    rect.label = label + (offset !== 0 ? ` (offset ${offset})` : '');
-                    imageBoundsLayers.push(rect);
-                });
-            });
-
-            // Create HRRR grid extent visualization (green rectangle) with wrapping
-            // This shows the maximum possible extent of the HRRR grid
-            const gridWest = alaska.western.bounds[0];
-            const gridSouth = alaska.western.bounds[1];
-            const gridEast = alaska.western.bounds[2];
-            const gridNorth = alaska.western.bounds[3];
-
-            // Create 3 wrapped copies
-            gridExtentLayer = L.layerGroup([
-                L.rectangle([[gridSouth, gridWest], [gridNorth, gridEast]], {
-                    color: '#00ff00', weight: 4, fillOpacity: 0, dashArray: '15, 10'
-                }),
-                L.rectangle([[gridSouth, gridWest + 360], [gridNorth, gridEast + 360]], {
-                    color: '#00ff00', weight: 4, fillOpacity: 0, dashArray: '15, 10'
-                }),
-                L.rectangle([[gridSouth, gridWest - 360], [gridNorth, gridEast - 360]], {
-                    color: '#00ff00', weight: 4, fillOpacity: 0, dashArray: '15, 10'
-                })
-            ]);
-
-            console.log(`Loaded: ${imageLayers.length} images, ${alaska.boundary_polygon.length} boundary points`);
-
-            // Log detailed bounds comparison
-            console.group('🔍 BOUNDS COMPARISON');
-            console.log('%cImage Bounds (from API):', 'color: blue; font-weight: bold');
-            console.log('  Western:', alaska.western.bounds);
-            console.log('  Eastern:', alaska.eastern.bounds);
-
-            const bLats = alaska.boundary_polygon.map(p => p.lat);
-            const bLons = alaska.boundary_polygon.map(p => p.lon);
-            const boundaryExtent = [
-                Math.min(...bLons),
-                Math.min(...bLats),
-                Math.max(...bLons),
-                Math.max(...bLats)
-            ];
-
-            console.log('%cBoundary Polygon Extent:', 'color: red; font-weight: bold');
-            console.log('  [West, South, East, North]:', boundaryExtent);
-
-            console.log('%cDifference (Image - Boundary):', 'color: orange; font-weight: bold');
-            console.log('  West:  ' + (alaska.western.bounds[0] - boundaryExtent[0]).toFixed(6) + '°');
-            console.log('  South: ' + (alaska.western.bounds[1] - boundaryExtent[1]).toFixed(6) + '°');
-            console.log('  East:  ' + (alaska.western.bounds[2] - boundaryExtent[2]).toFixed(6) + '°');
-            console.log('  North: ' + (alaska.western.bounds[3] - boundaryExtent[3]).toFixed(6) + '°');
-
-            const totalDiff = Math.abs(alaska.western.bounds[0] - boundaryExtent[0]) +
-                            Math.abs(alaska.western.bounds[1] - boundaryExtent[1]) +
-                            Math.abs(alaska.western.bounds[2] - boundaryExtent[2]) +
-                            Math.abs(alaska.western.bounds[3] - boundaryExtent[3]);
-
-            if (totalDiff > 0.1) {
-                console.log('%c⚠️  MISMATCH DETECTED! Total difference: ' + totalDiff.toFixed(6) + '°', 'color: red; font-weight: bold; font-size: 14px');
-                console.log('%cThe boundary polygon does NOT match the image bounds!', 'color: red; font-weight: bold');
-            } else {
-                console.log('%c✓ Bounds match within tolerance', 'color: green; font-weight: bold');
-            }
-            console.groupEnd();
-
-            // Run alignment diagnosis
-            setTimeout(diagnoseAlignment, 1000);
-        }
-
-        function clearLayers() {
-            imageLayers.forEach(l => map.removeLayer(l));
-            imageLayers = [];
-            if (boundaryLayer) map.removeLayer(boundaryLayer);
-            if (cornersLayer) map.removeLayer(cornersLayer);
-            if (pointsLayer) map.removeLayer(pointsLayer);
-            imageBoundsLayers.forEach(l => map.removeLayer(l));
-            imageBoundsLayers = [];
-            if (gridExtentLayer) map.removeLayer(gridExtentLayer);
-        }
-
-        // Log detailed alignment info
-        function diagnoseAlignment() {
-            console.group('Alignment Diagnosis');
-
-            // Check bounds
-            imageLayers.forEach(l => {
-                const bounds = l.getBounds();
-                console.log(l.label, {
-                    south: bounds.getSouth(),
-                    west: bounds.getWest(),
-                    north: bounds.getNorth(),
-                    east: bounds.getEast()
-                });
-            });
-
-            // Check boundary extent
-            if (boundaryLayer) {
-                const bounds = boundaryLayer.getBounds();
-                console.log('Boundary polygon bounds:', {
-                    south: bounds.getSouth(),
-                    west: bounds.getWest(),
-                    north: bounds.getNorth(),
-                    east: bounds.getEast()
-                });
-            }
-
-            console.groupEnd();
-        }
-
-        // Controls
-        document.getElementById('showImages').addEventListener('change', (e) => {
-            imageLayers.forEach(l => {
-                if (e.target.checked) l.addTo(map);
-                else map.removeLayer(l);
-            });
-        });
-
-        document.getElementById('showBoundary').addEventListener('change', (e) => {
-            if (e.target.checked && boundaryLayer) boundaryLayer.addTo(map);
-            else if (boundaryLayer) map.removeLayer(boundaryLayer);
-        });
-
-        document.getElementById('showBoundaryPoints').addEventListener('change', (e) => {
-            if (e.target.checked && pointsLayer) pointsLayer.addTo(map);
-            else if (pointsLayer) map.removeLayer(pointsLayer);
-        });
-
-        document.getElementById('showImageCorners').addEventListener('change', (e) => {
-            if (e.target.checked && cornersLayer) cornersLayer.addTo(map);
-            else if (cornersLayer) map.removeLayer(cornersLayer);
-        });
-
-        document.getElementById('showImageBounds').addEventListener('change', (e) => {
-            imageBoundsLayers.forEach(layer => {
-                if (e.target.checked) layer.addTo(map);
-                else map.removeLayer(layer);
-            });
-        });
-
-        document.getElementById('showGridExtent').addEventListener('change', (e) => {
-            if (e.target.checked && gridExtentLayer) gridExtentLayer.addTo(map);
-            else if (gridExtentLayer) map.removeLayer(gridExtentLayer);
-        });
-
-        document.getElementById('opacity').addEventListener('input', (e) => {
-            const opacity = e.target.value / 100;
-            document.getElementById('opacityValue').textContent = e.target.value + '%';
-            imageLayers.forEach(l => l.setOpacity(opacity));
-        });
-
-        document.getElementById('zoomToAlaska').addEventListener('click', () => {
-            map.setView([64.0, -152.0], 4);
-        });
-
-        document.getElementById('zoomToDateLine').addEventListener('click', () => {
-            map.setView([66.0, 180.0], 5);
-        });
-
-        document.getElementById('refreshData').addEventListener('click', () => {
-            loadData();
-        });
-
-        // Load data on page load
-        loadData();
     </script>
 </body>
 </html>
