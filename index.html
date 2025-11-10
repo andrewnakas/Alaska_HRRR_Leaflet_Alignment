@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>HRRR Alaska - Proper Dateline Handling</title>
+    <title>HRRR Alaska - Proper Alignment</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -50,18 +50,16 @@
         <h3>HRRR Alaska</h3>
         <div id="status">Loading...</div>
         <div style="margin-top: 10px; font-size: 11px; color: #666;">
-            Full domain with dateline handling<br>
-            All data included
+            Properly reprojected & aligned<br>
+            Split at dateline
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Leaflet Antimeridian plugin for dateline crossing -->
-    <script src="https://unpkg.com/leaflet-antimeridian@1.0.1/src/leaflet-antimeridian.js"></script>
 
     <script>
         console.log('='.repeat(80));
-        console.log('HRRR Alaska - Proper Dateline Handling');
+        console.log('HRRR Alaska - Proper Alignment');
         console.log('='.repeat(80));
         console.log();
 
@@ -70,8 +68,7 @@
             center: [60, -155],
             zoom: 4,
             minZoom: 3,
-            maxZoom: 10,
-            worldCopyJump: false  // Don't wrap around the world
+            maxZoom: 10
         });
 
         // Add OpenStreetMap base layer
@@ -87,92 +84,113 @@
                 console.log('Loaded HRRR Alaska data:');
                 console.log('  Method:', data._metadata.method);
                 console.log('  Variable:', data._metadata.variable);
-                console.log('  Grid:', data._metadata.grid_shape.join(' x '));
+                console.log('  Date:', data._metadata.date);
+                console.log('  Regions:', data._metadata.split_regions);
                 console.log();
 
-                // Get bounds from the data
-                var bounds = data.direct.bounds;
-                var west = bounds[0];
-                var south = bounds[1];
-                var east = bounds[2];
-                var north = bounds[3];
+                // Add western region (Alaska mainland)
+                if (data.western) {
+                    var westernBounds = data.western.bounds;
+                    console.log('Western region (' + data.western.label + '):');
+                    console.log('  Bounds:', westernBounds);
 
-                console.log('Image bounds:');
-                console.log('  West:', west.toFixed(2), '°');
-                console.log('  South:', south.toFixed(2), '°');
-                console.log('  East:', east.toFixed(2), '°');
-                console.log('  North:', north.toFixed(2), '°');
+                    var westernImageBounds = [
+                        [westernBounds[1], westernBounds[0]],  // Southwest
+                        [westernBounds[3], westernBounds[2]]   // Northeast
+                    ];
+
+                    L.imageOverlay(
+                        data.western.image_url,
+                        westernImageBounds,
+                        {
+                            opacity: 0.7,
+                            interactive: false
+                        }
+                    ).addTo(map);
+
+                    console.log('  ✓ Western image added');
+                }
+
+                // Add eastern region (Aleutians)
+                if (data.eastern) {
+                    var easternBounds = data.eastern.bounds;
+                    console.log('Eastern region (' + data.eastern.label + '):');
+                    console.log('  Bounds:', easternBounds);
+
+                    var easternImageBounds = [
+                        [easternBounds[1], easternBounds[0]],  // Southwest
+                        [easternBounds[3], easternBounds[2]]   // Northeast
+                    ];
+
+                    L.imageOverlay(
+                        data.eastern.image_url,
+                        easternImageBounds,
+                        {
+                            opacity: 0.7,
+                            interactive: false
+                        }
+                    ).addTo(map);
+
+                    console.log('  ✓ Eastern image added');
+                }
+
                 console.log();
 
-                // Add image overlay
-                var imageBounds = [
-                    [south, west],
-                    [north, east]
-                ];
-
-                var imageOverlay = L.imageOverlay(
-                    data.direct.image_url,
-                    imageBounds,
-                    {
-                        opacity: 0.7,
-                        interactive: false
-                    }
-                ).addTo(map);
-
-                console.log('✓ Image overlay added');
-                console.log();
-
-                // Add boundary polygon with antimeridian support
+                // Add boundary polygon
                 var boundaryCoords = data.boundary_polygon.map(p => [p.lat, p.lon]);
 
-                // Use geodesic polygon if antimeridian plugin is available
-                var boundaryPolygon;
-                if (L.Polyline.Antimeridian) {
-                    boundaryPolygon = L.polygon.antimeridian(boundaryCoords, {
-                        color: 'red',
-                        weight: 2,
-                        fillOpacity: 0,
-                        interactive: false
-                    }).addTo(map);
-                    console.log('✓ Boundary polygon added (with antimeridian support)');
-                } else {
-                    boundaryPolygon = L.polygon(boundaryCoords, {
-                        color: 'red',
-                        weight: 2,
-                        fillOpacity: 0,
-                        interactive: false
-                    }).addTo(map);
-                    console.log('✓ Boundary polygon added (standard)');
-                }
-                console.log('  Points:', boundaryCoords.length);
+                L.polygon(boundaryCoords, {
+                    color: 'red',
+                    weight: 2,
+                    fillOpacity: 0,
+                    interactive: false
+                }).addTo(map);
+
+                console.log('✓ Boundary polygon added (' + boundaryCoords.length + ' points)');
                 console.log();
 
-                // Get actual boundary extent
+                // Calculate alignment check
                 var lats = data.boundary_polygon.map(p => p.lat);
                 var lons = data.boundary_polygon.map(p => p.lon);
-                var boundary_west = Math.min(...lons);
-                var boundary_south = Math.min(...lats);
-                var boundary_east = Math.max(...lons);
-                var boundary_north = Math.max(...lats);
+
+                // Separate western and eastern hemispheres
+                var westLons = lons.filter(lon => lon < 0);
+                var eastLons = lons.filter(lon => lon > 0);
 
                 console.log('Boundary extent:');
-                console.log('  West:', boundary_west.toFixed(2), '°');
-                console.log('  South:', boundary_south.toFixed(2), '°');
-                console.log('  East:', boundary_east.toFixed(2), '°');
-                console.log('  North:', boundary_north.toFixed(2), '°');
+                console.log('  Latitude: ' + Math.min(...lats).toFixed(2) + '° to ' + Math.max(...lats).toFixed(2) + '°');
+                console.log('  Western hemisphere: ' + Math.min(...westLons).toFixed(2) + '° to ' + Math.max(...westLons).toFixed(2) + '°');
+                console.log('  Eastern hemisphere: ' + Math.min(...eastLons).toFixed(2) + '° to ' + Math.max(...eastLons).toFixed(2) + '°');
                 console.log();
 
-                // Check for dateline crossing
-                var west_lons = lons.filter(lon => lon < 0);
-                var east_lons = lons.filter(lon => lon > 0);
-                if (west_lons.length > 0 && east_lons.length > 0) {
-                    var west_extent = [Math.min(...west_lons), Math.max(...west_lons)];
-                    var east_extent = [Math.min(...east_lons), Math.max(...east_lons)];
-                    console.log('✓ Dateline crossing detected:');
-                    console.log('  Western side:', west_extent[0].toFixed(2), '° to', west_extent[1].toFixed(2), '°');
-                    console.log('  Eastern side:', east_extent[0].toFixed(2), '° to', east_extent[1].toFixed(2), '°');
-                    console.log('  Gap at dateline:', (180 - east_extent[1] + 180 + west_extent[0]).toFixed(2), '° (wraps around)');
+                // Check alignment for western region
+                if (data.western) {
+                    var westBounds = data.western.bounds;
+                    var westBoundaryLons = westLons.filter(lon => lon >= westBounds[0] && lon <= westBounds[2]);
+                    if (westBoundaryLons.length > 0) {
+                        var westDiff = Math.abs(Math.min(...westBoundaryLons) - westBounds[0]) +
+                                      Math.abs(Math.max(...westBoundaryLons) - westBounds[2]);
+                        console.log('Western region alignment: ' + westDiff.toFixed(2) + '° difference');
+                        if (westDiff < 1) {
+                            console.log('  ✓ GOOD alignment');
+                        }
+                    }
                 }
+
+                // Check alignment for eastern region
+                if (data.eastern) {
+                    var eastBounds = data.eastern.bounds;
+                    var eastBoundaryLons = eastLons.filter(lon => lon >= eastBounds[0] && lon <= eastBounds[2]);
+                    if (eastBoundaryLons.length > 0) {
+                        var eastDiff = Math.abs(Math.min(...eastBoundaryLons) - eastBounds[0]) +
+                                      Math.abs(Math.max(...eastBoundaryLons) - eastBounds[2]);
+                        console.log('Eastern region alignment: ' + eastDiff.toFixed(2) + '° difference');
+                        if (eastDiff < 1) {
+                            console.log('  ✓ GOOD alignment');
+                        }
+                    }
+                }
+
                 console.log();
 
                 // Update status
@@ -180,15 +198,12 @@
                     '<span class="status">✓ Loaded</span><br>' +
                     'Variable: ' + data._metadata.variable + '<br>' +
                     'Date: ' + data._metadata.date.substring(0, 10) + '<br>' +
-                    'Grid: ' + data._metadata.grid_shape.join(' × ') + '<br>' +
-                    'Dateline: Properly handled';
-
-                // Fit map to image bounds
-                map.fitBounds(imageBounds);
+                    'Regions: ' + data._metadata.split_regions + ' (split at dateline)<br>' +
+                    'Alignment: Properly reprojected';
 
                 console.log('='.repeat(80));
                 console.log('SUCCESS!');
-                console.log('Full HRRR Alaska domain with proper dateline handling');
+                console.log('HRRR Alaska with proper alignment - split at dateline');
                 console.log('='.repeat(80));
 
             })

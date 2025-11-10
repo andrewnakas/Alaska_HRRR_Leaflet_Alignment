@@ -1,12 +1,23 @@
 {
-  "direct": {
-    "image_url": "images/hrrr_direct.png",
+  "western": {
+    "image_url": "images/hrrr_western.png",
     "bounds": [
-      -174.882874,
+      -180,
       41.612949,
-      156.43684261143042,
-      76.3376569531758
-    ]
+      -130,
+      77.09289230325162
+    ],
+    "label": "Alaska Mainland"
+  },
+  "eastern": {
+    "image_url": "images/hrrr_eastern.png",
+    "bounds": [
+      170,
+      41.612949,
+      180,
+      77.09289230325162
+    ],
+    "label": "Western Aleutians"
   },
   "boundary_polygon": [
     {
@@ -1611,32 +1622,17 @@
     }
   ],
   "_metadata": {
-    "generated": "2025-11-09T23:45:29.854823Z",
-    "method": "direct_latlon_approximate_rectangular",
+    "generated": "2025-11-10T00:03:19.734181Z",
+    "method": "rasterio_reproject_split_at_dateline",
     "source": "NOAA HRRR Alaska - REFC",
     "model": "hrrrak",
     "date": "2025-11-09T21:00:00",
-    "forecast_hour": 0,
     "variable": "REFC",
-    "data_range": [
-      5.0,
-      61.75
-    ],
-    "grid_shape": [
+    "source_grid_shape": [
       919,
       1299
     ],
-    "projection": "curvilinear (displayed as approximate rectangle)",
-    "approximate_bounds": [
-      -174.882874,
-      41.612949,
-      156.43684261143042,
-      76.3376569531758
-    ],
-    "longitude_span": "331.3\u00b0",
-    "points_per_edge": 100,
-    "total_points": 400,
-    "grib_url": "https://nomads.ncep.noaa.gov/pub/data/nccf/com/hrrr/prod/hrrr.20251109/alaska/hrrr.t21z.wrfsfcf00.ak.grib2",
-    "note": "Direct lat/lon from GRIB2, displayed with approximate rectangular bounds. Boundary polygon follows actual grid edges."
+    "split_regions": 2,
+    "note": "Split at dateline to avoid 360\u00b0 world-spanning"
   }
 }
