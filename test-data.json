@@ -2,10 +2,10 @@
   "continuous": {
     "image_url": "images/hrrr_continuous.png",
     "bounds": [
-      -203.56315738856958,
-      41.612949,
-      -115.7757371578563,
-      77.09289230325162
+      -195.93090688492023,
+      51.23417834802149,
+      -126.2019605906281,
+      69.55206432516226
     ]
   },
   "boundary_polygon": [
@@ -1611,8 +1611,8 @@
     }
   ],
   "_metadata": {
-    "generated": "2025-11-10T01:53:55.832689Z",
-    "method": "continuous_longitude_russia_to_alaska",
+    "generated": "2025-11-10T02:33:08.711778Z",
+    "method": "continuous_longitude_russia_to_alaska_optimally_aligned",
     "source": "NOAA HRRR Alaska - REFC",
     "model": "hrrrak",
     "date": "2025-11-10T00:00:00",
@@ -1625,7 +1625,19 @@
       1182,
       2926
     ],
+    "base_bounds": [
+      -203.56315738856958,
+      41.612949,
+      -115.7757371578563,
+      77.09289230325162
+    ],
+    "adjusted_bounds": [
+      -195.93090688492023,
+      51.23417834802149,
+      -126.2019605906281,
+      69.55206432516226
+    ],
     "longitude_span": "87.8\u00b0",
-    "note": "Continuous longitude from Russia to Alaska - no world-wrapping"
+    "note": "Continuous longitude from Russia to Alaska with optimal alignment applied"
   }
 }

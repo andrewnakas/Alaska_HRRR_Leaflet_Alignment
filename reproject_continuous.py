@@ -186,6 +186,61 @@ def main():
     print("✓ Reprojection complete!")
     print()
 
+    # Apply optimal alignment transformation
+    print("Applying optimal alignment...")
+
+    # Load optimal parameters from alignment_config.json
+    config_path = Path('alignment_config.json')
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+
+        adjustments = config['adjustments']
+        lon_offset = adjustments['lon_offset']
+        lat_offset = adjustments['lat_offset']
+        lon_scale = adjustments['lon_scale']
+        lat_scale = adjustments['lat_scale']
+
+        print(f"  Longitude offset: {lon_offset:+.3f}°")
+        print(f"  Latitude offset: {lat_offset:+.3f}°")
+        print(f"  Longitude scale: {lon_scale:.3f}x")
+        print(f"  Latitude scale: {lat_scale:.3f}x")
+
+        # Calculate center
+        center_lon = (lon_min + lon_max) / 2
+        center_lat = (lat_min + lat_max) / 2
+
+        # Apply scaling from center
+        lon_span = (lon_max - lon_min) * lon_scale
+        lat_span = (lat_max - lat_min) * lat_scale
+
+        lon_min_adjusted = center_lon - lon_span / 2
+        lon_max_adjusted = center_lon + lon_span / 2
+        lat_min_adjusted = center_lat - lat_span / 2
+        lat_max_adjusted = center_lat + lat_span / 2
+
+        # Apply offset
+        lon_min_adjusted += lon_offset
+        lon_max_adjusted += lon_offset
+        lat_min_adjusted += lat_offset
+        lat_max_adjusted += lat_offset
+
+        print(f"  Adjusted bounds: [{lon_min_adjusted:.2f}, {lat_min_adjusted:.2f}, {lon_max_adjusted:.2f}, {lat_max_adjusted:.2f}]")
+        print()
+
+        # Use adjusted bounds for visualization
+        lon_min_viz = lon_min_adjusted
+        lat_min_viz = lat_min_adjusted
+        lon_max_viz = lon_max_adjusted
+        lat_max_viz = lat_max_adjusted
+    else:
+        print("  No alignment_config.json found, using original bounds")
+        print()
+        lon_min_viz = lon_min
+        lat_min_viz = lat_min
+        lon_max_viz = lon_max
+        lat_max_viz = lat_max
+
     # Create visualization
     print(f"Creating {variable} visualization...")
 
@@ -215,7 +270,7 @@ def main():
     ax.axis('off')
 
     ax.imshow(dst_data, cmap=cmap, aspect='auto',
-              extent=[lon_min, lon_max, lat_min, lat_max],
+              extent=[lon_min_viz, lon_max_viz, lat_min_viz, lat_max_viz],
               vmin=vmin, vmax=vmax, interpolation='bilinear',
               origin='lower')
 
@@ -253,20 +308,22 @@ def main():
     output = {
         "continuous": {
             "image_url": "images/hrrr_continuous.png",
-            "bounds": [lon_min, lat_min, lon_max, lat_max]
+            "bounds": [lon_min_viz, lat_min_viz, lon_max_viz, lat_max_viz]
         },
         "boundary_polygon": boundary,
         "_metadata": {
             "generated": datetime.utcnow().isoformat() + "Z",
-            "method": "continuous_longitude_russia_to_alaska",
+            "method": "continuous_longitude_russia_to_alaska_optimally_aligned",
             "source": f"NOAA HRRR Alaska - {variable}",
             "model": H.model,
             "date": H.date.isoformat(),
             "variable": variable,
             "source_grid_shape": [ny, nx],
             "reprojected_grid_shape": [dst_height, dst_width],
+            "base_bounds": [lon_min, lat_min, lon_max, lat_max],
+            "adjusted_bounds": [lon_min_viz, lat_min_viz, lon_max_viz, lat_max_viz],
             "longitude_span": f"{lon_max - lon_min:.1f}°",
-            "note": "Continuous longitude from Russia to Alaska - no world-wrapping"
+            "note": "Continuous longitude from Russia to Alaska with optimal alignment applied"
         }
     }
 
@@ -280,8 +337,9 @@ def main():
     print("=" * 80)
     print(f"Variable: {variable}")
     print(f"Grid: {dst_height} x {dst_width}")
-    print(f"Longitude: {lon_min:.2f}° to {lon_max:.2f}° ({lon_max - lon_min:.1f}° span)")
-    print("Continuous bounds from Russia to Alaska - no world-wrapping!")
+    print(f"Base bounds: {lon_min:.2f}° to {lon_max:.2f}° ({lon_max - lon_min:.1f}° span)")
+    print(f"Adjusted bounds: {lon_min_viz:.2f}° to {lon_max_viz:.2f}° ({lon_max_viz - lon_min_viz:.1f}° span)")
+    print("Continuous bounds from Russia to Alaska with optimal alignment!")
     print()
 
 if __name__ == "__main__":
