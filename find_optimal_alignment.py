@@ -64,7 +64,23 @@ def transform_bounds(base_bounds, lon_offset, lat_offset, lon_scale, lat_scale):
 
     return [west, south, east, north]
 
-def get_pixel_coords(non_transparent, bounds):
+def rotate_point(lon, lat, center_lon, center_lat, rotation_deg):
+    """Rotate a point around a center by rotation_deg degrees"""
+    # Convert to radians
+    theta = np.radians(rotation_deg)
+
+    # Translate to origin
+    lon_rel = lon - center_lon
+    lat_rel = lat - center_lat
+
+    # Rotate
+    lon_rotated = lon_rel * np.cos(theta) - lat_rel * np.sin(theta)
+    lat_rotated = lon_rel * np.sin(theta) + lat_rel * np.cos(theta)
+
+    # Translate back
+    return center_lon + lon_rotated, center_lat + lat_rotated
+
+def get_pixel_coords(non_transparent, bounds, rotation_deg=0):
     """Get geographic coordinates of non-transparent pixels"""
     west, south, east, north = bounds
     height, width = non_transparent.shape
@@ -78,6 +94,12 @@ def get_pixel_coords(non_transparent, bounds):
     pixel_lons = lons[x_indices]
     pixel_lats = lats[y_indices]
 
+    # Apply rotation if specified
+    if rotation_deg != 0:
+        center_lon = (west + east) / 2
+        center_lat = (south + north) / 2
+        pixel_lons, pixel_lats = rotate_point(pixel_lons, pixel_lats, center_lon, center_lat, rotation_deg)
+
     return pixel_lons, pixel_lats
 
 def evaluate_alignment(params, base_bounds, non_transparent, boundary_poly, prepared_boundary):
@@ -85,13 +107,13 @@ def evaluate_alignment(params, base_bounds, non_transparent, boundary_poly, prep
     Evaluate alignment quality.
     Returns penalty (lower is better).
     """
-    lon_offset, lat_offset, lon_scale, lat_scale = params
+    lon_offset, lat_offset, lon_scale, lat_scale, rotation_deg = params
 
     # Transform bounds
     transformed_bounds = transform_bounds(base_bounds, lon_offset, lat_offset, lon_scale, lat_scale)
 
-    # Get pixel coordinates
-    pixel_lons, pixel_lats = get_pixel_coords(non_transparent, transformed_bounds)
+    # Get pixel coordinates with rotation
+    pixel_lons, pixel_lats = get_pixel_coords(non_transparent, transformed_bounds, rotation_deg)
 
     # Sample pixels for faster computation (use every Nth pixel)
     sample_rate = max(1, len(pixel_lons) // 5000)
@@ -154,12 +176,13 @@ def find_optimal_alignment():
     print()
 
     # Define search bounds for optimization
-    # [lon_offset, lat_offset, lon_scale, lat_scale]
+    # [lon_offset, lat_offset, lon_scale, lat_scale, rotation_deg]
     bounds = [
         (-20, 20),   # lon_offset: ±20 degrees
         (-20, 20),   # lat_offset: ±20 degrees
         (0.5, 2.0),  # lon_scale: 0.5x to 2.0x
-        (0.5, 2.0)   # lat_scale: 0.5x to 2.0x
+        (0.5, 2.0),  # lat_scale: 0.5x to 2.0x
+        (-45, 45)    # rotation_deg: ±45 degrees
     ]
 
     print("Starting optimization...")
@@ -168,6 +191,7 @@ def find_optimal_alignment():
     print(f"  Latitude offset: {bounds[1]}")
     print(f"  Longitude scale: {bounds[2]}")
     print(f"  Latitude scale: {bounds[3]}")
+    print(f"  Rotation: {bounds[4]}")
     print()
 
     # Run optimization
@@ -189,13 +213,14 @@ def find_optimal_alignment():
     print("Optimization Results")
     print("="*80)
 
-    lon_offset, lat_offset, lon_scale, lat_scale = result.x
+    lon_offset, lat_offset, lon_scale, lat_scale, rotation_deg = result.x
 
     print(f"Optimal parameters:")
     print(f"  Longitude offset: {lon_offset:+.3f}°")
     print(f"  Latitude offset: {lat_offset:+.3f}°")
     print(f"  Longitude scale: {lon_scale:.3f}x")
     print(f"  Latitude scale: {lat_scale:.3f}x")
+    print(f"  Rotation: {rotation_deg:+.1f}°")
     print(f"  Penalty score: {result.fun:.2f}")
     print()
 
@@ -210,7 +235,7 @@ def find_optimal_alignment():
     print()
 
     # Verify all pixels inside
-    pixel_lons, pixel_lats = get_pixel_coords(non_transparent, optimal_bounds)
+    pixel_lons, pixel_lats = get_pixel_coords(non_transparent, optimal_bounds, rotation_deg)
     sample_rate = max(1, len(pixel_lons) // 10000)
     sample_lons = pixel_lons[::sample_rate]
     sample_lats = pixel_lats[::sample_rate]
@@ -225,7 +250,7 @@ def find_optimal_alignment():
 
     # Save to alignment_config.json
     config = {
-        "comment": "Optimal alignment found programmatically",
+        "comment": "Optimal alignment found programmatically with rotation",
         "adjustments": {
             "lon_offset": float(lon_offset),
             "lat_offset": float(lat_offset),
@@ -235,16 +260,17 @@ def find_optimal_alignment():
             "east_adjustment": 0.0,
             "north_adjustment": 0.0,
             "south_adjustment": 0.0,
-            "rotation_degrees": 0.0,
+            "rotation_degrees": float(rotation_deg),
             "skew_x": 0.0,
             "skew_y": 0.0
         },
         "instructions": {
-            "note": "These values were computed automatically to maximize alignment",
+            "note": "These values were computed automatically to maximize alignment with rotation included",
             "lon_offset": f"Shift entire image east (+) or west (-) in degrees: {lon_offset:+.3f}°",
             "lat_offset": f"Shift entire image north (+) or south (-) in degrees: {lat_offset:+.3f}°",
             "lon_scale": f"Horizontal scale factor: {lon_scale:.3f}x",
-            "lat_scale": f"Vertical scale factor: {lat_scale:.3f}x"
+            "lat_scale": f"Vertical scale factor: {lat_scale:.3f}x",
+            "rotation_degrees": f"Rotation clockwise in degrees: {rotation_deg:+.1f}°"
         },
         "optimal_bounds": {
             "west": float(optimal_bounds[0]),

@@ -1,29 +1,30 @@
 {
-  "comment": "Optimal alignment found programmatically",
+  "comment": "Optimal alignment found programmatically with rotation",
   "adjustments": {
-    "lon_offset": -1.3969864645612318,
-    "lat_offset": 1.0402006849660639,
-    "lon_scale": 0.7942931471392843,
-    "lat_scale": 0.5162884793973729,
+    "lon_offset": 14.320843335696,
+    "lat_offset": -5.004706594246391,
+    "lon_scale": 0.5246549472465332,
+    "lat_scale": 0.5034955184803426,
     "west_adjustment": 0.0,
     "east_adjustment": 0.0,
     "north_adjustment": 0.0,
     "south_adjustment": 0.0,
-    "rotation_degrees": 0.0,
+    "rotation_degrees": 13.731483946420255,
     "skew_x": 0.0,
     "skew_y": 0.0
   },
   "instructions": {
-    "note": "These values were computed automatically to maximize alignment",
-    "lon_offset": "Shift entire image east (+) or west (-) in degrees: -1.397\u00b0",
-    "lat_offset": "Shift entire image north (+) or south (-) in degrees: +1.040\u00b0",
-    "lon_scale": "Horizontal scale factor: 0.794x",
-    "lat_scale": "Vertical scale factor: 0.516x"
+    "note": "These values were computed automatically to maximize alignment with rotation included",
+    "lon_offset": "Shift entire image east (+) or west (-) in degrees: +14.321\u00b0",
+    "lat_offset": "Shift entire image north (+) or south (-) in degrees: -5.005\u00b0",
+    "lon_scale": "Horizontal scale factor: 0.525x",
+    "lat_scale": "Vertical scale factor: 0.503x",
+    "rotation_degrees": "Rotation clockwise in degrees: +13.7\u00b0"
   },
   "optimal_bounds": {
-    "west": -195.93090688492023,
-    "south": 51.23417834802149,
-    "east": -126.2019605906281,
-    "north": 69.55206432516226
+    "west": -165.03740872187225,
+    "south": 50.776927993583335,
+    "east": -128.45377208228408,
+    "north": 59.99990149110763
   }
 }
