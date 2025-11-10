@@ -573,11 +573,19 @@
             updateBoundsDisplay();
         }
 
-        // Setup event listeners
+        // Setup event listeners with auto-apply
+        let applyTimeout = null;
+
         document.querySelectorAll('input[type="range"]').forEach(input => {
             input.addEventListener('input', function() {
                 updateValueDisplay(this.id, this.value);
                 updateBoundsDisplay();
+
+                // Auto-apply with debounce (wait 300ms after user stops sliding)
+                clearTimeout(applyTimeout);
+                applyTimeout = setTimeout(() => {
+                    applyAdjustments();
+                }, 300);
             });
         });
 
