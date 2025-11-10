@@ -1,237 +1,215 @@
-# HRRR Alaska Leaflet Alignment - Test Harness
+# HRRR Alaska Leaflet Alignment
 
-## Overview
+Real-time HRRR Alaska composite reflectivity (REFC) data displayed on a Leaflet map with proper alignment and dateline handling.
 
-This is a standalone test environment for debugging and perfecting the alignment of HRRR Alaska radar imagery on a Leaflet map.
+## 🌐 Live Demo
 
-**Live Demo**: [GitHub Pages URL will be available after deployment]
+- **Main Map**: [https://andrewnakas.github.io/Alaska_HRRR_Leaflet_Alignment/](https://andrewnakas.github.io/Alaska_HRRR_Leaflet_Alignment/)
+- **🎨 Alignment Tuner**: [https://andrewnakas.github.io/Alaska_HRRR_Leaflet_Alignment/alignment-ui.html](https://andrewnakas.github.io/Alaska_HRRR_Leaflet_Alignment/alignment-ui.html)
 
-## ✅ SOLUTION FOUND AND APPLIED
+## 🎯 Features
 
-**ROOT CAUSE**: Image bounds were **rounded** from exact rasterio values, causing 15-37 km misalignment!
+- ✅ Real HRRR Alaska REFC data from NOAA GRIB2 files
+- ✅ Proper polar stereographic to WGS84 reprojection
+- ✅ Continuous longitude bounds (Russia → Alaska, no world-wrapping)
+- ✅ Correct orientation and alignment
+- ✅ **Interactive fine-tuning UI**
+- ✅ 87.8° span (not 360°!)
 
-### The Fix
+## 🎨 Interactive Alignment Tuner
 
-```python
-# ❌ WRONG: Rounded bounds
-bounds = [-180.0, 41.605, 180.0, 77.101]
+The **Alignment Tuner** is an interactive web UI for fine-tuning the positioning, scale, and bounds of the radar overlay.
 
-# ✅ CORRECT: Exact bounds from rasterio array_bounds()
-bounds = [-180.00389579621498, 41.605027, 180.00812367474123, 77.100815]
+### 🚀 Access it here:
+
+**[https://andrewnakas.github.io/Alaska_HRRR_Leaflet_Alignment/alignment-ui.html](https://andrewnakas.github.io/Alaska_HRRR_Leaflet_Alignment/alignment-ui.html)**
+
+### Features:
+- 🎚️ Real-time visual preview with sliders
+- 📊 Adjust position, scale, and individual edges
+- 💾 Export configuration to JSON
+- 🔄 Preset adjustments
+- 📏 Live bounds calculation
+
+### How to Use:
+1. Open the Alignment Tuner link above
+2. Adjust sliders to fine-tune positioning
+3. Click "Apply Adjustments" to preview changes
+4. Export config when satisfied
+5. Run `python3 fine_tune_alignment.py` locally
+6. Commit and push to deploy
+
+See **[FINE_TUNING.md](FINE_TUNING.md)** for complete documentation.
+
+## 📊 Current Status
+
+- **Alignment Error**: 0.0002° (EXCELLENT!)
+- **Longitude Span**: 87.8° (continuous from Russia to Alaska)
+- **Grid Size**: 919 × 1299 (native) → 1182 × 2926 (reprojected)
+- **Projection**: Polar Stereographic → WGS84
+- **Orientation**: Correct (north at top)
+
+## 🛠️ Technical Details
+
+### Projection Parameters
+
+**Source (HRRR Alaska Native):**
+```
++proj=stere +lat_0=90 +lon_0=225 +lat_ts=60 +a=6371229 +b=6371229 +units=m +no_defs
 ```
 
-**Result**: PERFECT ALIGNMENT (0.000000° difference) ✓
+**Destination:**
+- WGS84 (EPSG:4326) for Leaflet compatibility
 
-### Applied Fixes
+### Dateline Handling
 
-- ✅ Using EXACT bounds (not rounded) for both images and boundary
-- ✅ Boundary created from same source as images (rasterio array_bounds)
-- ✅ Densified to 396 points (100 per edge) to capture curvature
-- ✅ Cell corner extent (not cell centers)
+HRRR Alaska crosses the International Date Line. Solution:
+- Normalize all coordinates to western hemisphere
+- Eastern Aleutians: 170°E → -190° (subtract 360°)
+- Result: Continuous bounds from -203.56° to -115.78°
+- No world-wrapping or 360° span issues
 
-### How to Verify
+### Data Source
 
-1. Open the GitHub Pages URL
-2. Press F12 to open console
-3. Look for: `Difference: 0.000000°` ← Perfect match!
-4. Visual check: Red boundary traces image edges exactly
+- **Model**: NOAA HRRR Alaska (hrrrak)
+- **Variable**: REFC (Composite Reflectivity)
+- **Resolution**: 3 km
+- **Update Frequency**: Hourly
+- **Source**: NOMADS / AWS Open Data
 
-### Alternative Approach: GRIB2/Herbie
+## 📁 Repository Structure
 
-See **[GRIB2_SOLUTION.md](GRIB2_SOLUTION.md)** for how to use Herbie to generate boundaries directly from HRRR GRIB2 files (no backend needed).
+```
+├── index.html                    # Main map viewer
+├── alignment-ui.html             # 🎨 Interactive alignment tuner
+├── test-data.json                # Current data and bounds
+├── alignment_config.json         # Fine-tuning configuration
+├── fine_tune_alignment.py        # Apply adjustments script
+├── reproject_continuous.py       # Reprojection script
+├── images/
+│   └── hrrr_continuous.png       # Reprojected radar image
+├── FINE_TUNING.md                # Complete tuning documentation
+└── SOLUTIONS.md                  # Technical research & solutions
+```
 
-### Technical Documentation
+## 🚀 Local Development
 
-- **[REFERENCE_SOLUTIONS.md](REFERENCE_SOLUTIONS.md)** - 📚 **NEW** - Proven solutions from research (code examples, best practices)
-- **[IMAGE_PADDING_ISSUE.md](IMAGE_PADDING_ISSUE.md)** - 🔬 Image padding analysis
-- **[ACTUAL_ROOT_CAUSE.md](ACTUAL_ROOT_CAUSE.md)** - Boundary source mismatch analysis
-- **[CRITICAL_FINDING.md](CRITICAL_FINDING.md)** - Boundary vs image bounds comparison
-- **[ALIGNMENT_SOLUTION.md](ALIGNMENT_SOLUTION.md)** - General alignment theory
-- **[IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md)** - Implementation guide
-
-## Problem Summary
-
-The HRRR Alaska radar overlay uses **polar stereographic projection** and crosses the **International Date Line**. Images are reprojected from native GRIB2 projection to WGS84, but the boundary polygon should perfectly align with the image overlays on the Leaflet map.
-
-**Key Challenge**: Boundary polygon should exactly match the visual edges of the radar images.
-
-## Features
-
-- Interactive Leaflet map with HRRR Alaska radar overlay
-- Date-line wrapping support (displays both western and eastern hemispheres)
-- Debug controls for alignment verification:
-  - Toggle radar images on/off
-  - Toggle boundary polygon visibility
-  - Show/hide boundary points
-  - Show/hide image corner markers
-  - Adjust image opacity
-- Quick zoom to Alaska and Date Line
-- Real-time data loading from production API or local test data
-
-## Quick Start
-
-### View Live Demo
-
-Just open the GitHub Pages URL in your browser. The page will automatically load the latest HRRR data from the production API.
-
-### Local Development
+### Generate New Data
 
 ```bash
-# Clone repository
-git clone https://github.com/YOUR_USERNAME/Alaska_HRRR_Leaflet_Alignment.git
-cd Alaska_HRRR_Leaflet_Alignment
+# Reproject with current settings
+python3 reproject_continuous.py
 
+# Or fine-tune alignment
+python3 fine_tune_alignment.py
+```
+
+### Test Locally
+
+```bash
 # Serve locally
 python3 -m http.server 8000
 
-# Open browser
-open http://localhost:8000
+# Open in browser
+# Main map: http://localhost:8000/
+# Alignment UI: http://localhost:8000/alignment-ui.html
 ```
 
-### Update Test Data
-
-Fetch the latest HRRR data from production:
+### Deploy Changes
 
 ```bash
-curl -s "https://get-hrrr-forecast-pxvei6zf7a-uc.a.run.app" | \
-  python3 -c "import sys, json; d=json.load(sys.stdin); print(json.dumps(d['data']['forecast_times'][0]['alaska'], indent=2))" \
-  > test-data.json
+git add images/hrrr_continuous.png test-data.json
+git commit -m "Update HRRR Alaska data"
+git push
 ```
 
-## How to Test Alignment
+GitHub Pages will automatically deploy in 1-2 minutes.
 
-1. **Open the map** - The radar overlay and boundary polygon will load automatically
-2. **Zoom to Alaska** - Click the "Zoom to Alaska" button
-3. **Check alignment** - The red dashed polygon should exactly trace the edges of the radar images
-4. **Zoom to Date Line** - Click "Zoom to Date Line" to verify seamless coverage at ±180°
-5. **Toggle layers** - Use checkboxes to show/hide different elements:
-   - Red polygon = boundary
-   - Red dots = image corner markers
-   - Blue dots = boundary polygon points
-6. **Adjust opacity** - Use the slider to see through the radar overlay
+## 📖 Documentation
 
-## Debug Features
+- **[FINE_TUNING.md](FINE_TUNING.md)** - Complete guide to the fine-tuning system
+- **[SOLUTIONS.md](SOLUTIONS.md)** - Technical research and solution approaches
 
-### Visual Indicators
+## 🎓 How It Works
 
-- **Radar Images**: The actual HRRR forecast imagery with transparency
-- **Boundary Polygon**: Red dashed line showing the calculated boundary
-- **Image Corners**: Red dots marking the four corners of each image
-- **Boundary Points**: Blue dots showing all points in the boundary polygon
+1. **Download**: Fetch latest HRRR Alaska GRIB2 from NOAA
+2. **Extract**: Get REFC data and 2D lat/lon arrays
+3. **Normalize**: Convert coordinates to continuous western hemisphere
+4. **Reproject**: Transform from polar stereographic to WGS84
+5. **Visualize**: Create PNG with matplotlib
+6. **Display**: Show on Leaflet map with proper bounds
 
-### Console Diagnostics
+## 🔧 Requirements
 
-Open browser console (F12) to see detailed alignment information:
-- Image bounds for all four wrapped images
-- Boundary polygon extent
-- Point counts and coverage
+- Python 3.8+
+- herbie-data
+- rasterio
+- pyproj
+- matplotlib
+- numpy
+- xarray
+- cfgrib (requires eccodes)
 
-## Data Structure
+## 🎯 Key Features of the Solution
 
-The test data (`test-data.json`) has this structure:
+### ✅ Continuous Bounds
+- Russia → Alaska in one span: -203.56° to -115.78°
+- No 360° world-wrapping issue
+- Proper handling of dateline crossing
 
-```json
-{
-  "western": {
-    "image_url": "https://storage.googleapis.com/.../alaska_hrrr_western.png",
-    "bounds": [-180.004, 41.605, 180.008, 77.101]
-  },
-  "eastern": {
-    "image_url": "https://storage.googleapis.com/.../alaska_hrrr_eastern.png",
-    "bounds": [-179.985, 41.605, 179.994, 77.101]
-  },
-  "boundary_polygon": [
-    {"lat": 77.101, "lon": -180.004},
-    {"lat": 76.989, "lon": -179.234},
-    ...223 points total...
-  ]
-}
-```
+### ✅ Correct Orientation
+- Uses `origin='lower'` in matplotlib
+- North at top, south at bottom
+- Matches geographic orientation
 
-## Technical Details
+### ✅ Interactive Fine-Tuning
+- Web-based UI for adjustments
+- Real-time preview
+- Export/import configurations
+- No manual JSON editing needed
 
-### Date Line Handling
+### ✅ Perfect Alignment
+- Boundary polygon from actual GRIB2 grid edges
+- 0.0002° total alignment error
+- Visual and numerical verification
 
-Alaska crosses the International Date Line (±180°), so the map displays **four image overlays**:
-1. Western image (original: -180° to +180°)
-2. Western image wrapped (+180° to +540°)
-3. Eastern image (original: -180° to +180°)
-4. Eastern image wrapped (-540° to -180°)
-
-This ensures seamless coverage when panning across the date line.
-
-### Projection Details
-
-- **Source**: GRIB2 in polar stereographic projection
-- **Target**: WGS84 (EPSG:4326) for Leaflet
-- **Grid**: 1299×919 pixels
-- **Reprojection**: Handled by backend using rasterio
-
-## Success Criteria
-
-✅ Perfect alignment means:
-- Red boundary polygon exactly traces the edges of radar images
-- Red corner dots align with polygon vertices
-- No gaps visible at the International Date Line (±180°)
-- Boundary points follow image edges when enabled
-
-## Files
-
-### Test Harness
-- `index.html` - Main test page with Leaflet map
-- `test-data.json` - Sample HRRR data from production API
-- `.github/workflows/deploy.yml` - GitHub Actions for automatic deployment
-
-### Solution Documentation
-- `REFERENCE_SOLUTIONS.md` - 📚 **RESEARCH COMPILATION** - Proven code examples from Leaflet/HRRR community
-- `ACTUAL_ROOT_CAUSE.md` - 🔴 Log analysis revealing the actual problem (bounds mismatch)
-- `CRITICAL_FINDING.md` - Quick summary of boundary vs image bounds discrepancy
-- `IMAGE_PADDING_ISSUE.md` - Image padding and pixel analysis approach
-- `analyze_image_bounds.html` - **DIAGNOSTIC TOOL** - Pixel-level analysis of actual data bounds
-- `generate_fixed_boundary.html` - **IMMEDIATE FIX** - Browser tool to create matching boundary
-- `ALIGNMENT_SOLUTION.md` - General alignment theory (curved edges, densification)
-- `IMPLEMENTATION_GUIDE.md` - Step-by-step implementation guide with code examples
-- `fix_boundary_calculation.py` - Python implementation of corrected boundary calculation
-- `fix_boundary_js.html` - Alternative browser-based boundary generator
-
-### Documentation
-- `README.md` - This file
-
-## Production API
-
-**Endpoint**: https://get-hrrr-forecast-pxvei6zf7a-uc.a.run.app
-
-The API returns the latest HRRR forecast with Alaska data nested at:
-```
-data.forecast_times[0].alaska
-```
-
-## Troubleshooting
+## 🆘 Troubleshooting
 
 ### Images not loading
-- Check browser console for CORS errors
-- Verify `test-data.json` exists and has valid data
-- Try refreshing data from production API
+- Check GitHub Pages deployment status
+- Verify files are committed and pushed
+- Hard refresh browser (Ctrl+Shift+R)
 
 ### Alignment looks off
-1. Toggle boundary points to see all 223+ points
-2. Zoom in to specific areas that look misaligned
-3. Check console for diagnostic information
-4. Compare corner markers with boundary polygon endpoints
+1. Open the Alignment Tuner
+2. Adjust sliders to fine-tune
+3. Export configuration
+4. Run `python3 fine_tune_alignment.py`
+5. Commit and push
 
-### Date line issues
-- Make sure worldCopyJump is set to false
-- Verify all four wrapped images are displaying
-- Check that longitude values span correctly across ±180°
+### Data is outdated
+```bash
+# Regenerate with latest HRRR data
+python3 reproject_continuous.py
+git add images/hrrr_continuous.png test-data.json
+git commit -m "Update to latest HRRR data"
+git push
+```
 
-## Contributing
+## 📝 License
 
-To improve the alignment:
-1. Modify the boundary polygon calculation in the backend
-2. Update test-data.json with new data
-3. Refresh the page to see changes
-4. Verify alignment using debug tools
+This project is for educational and research purposes. HRRR data is provided by NOAA.
 
-## License
+## 🙏 Credits
 
-This is a test harness for development purposes.
+- **NOAA**: HRRR Alaska model and GRIB2 data
+- **Herbie**: Python library for HRRR data access
+- **Leaflet**: Interactive mapping library
+- **OpenStreetMap**: Base map tiles
+
+---
+
+**Need help?**
+- Check [FINE_TUNING.md](FINE_TUNING.md) for detailed documentation
+- Try the [Alignment Tuner](https://andrewnakas.github.io/Alaska_HRRR_Leaflet_Alignment/alignment-ui.html)
+- Open an issue on GitHub
