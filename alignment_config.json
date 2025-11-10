@@ -1,10 +1,10 @@
 {
-  "comment": "Fine-tuning configuration for HRRR Alaska alignment",
+  "comment": "Optimal alignment found programmatically",
   "adjustments": {
-    "lon_offset": 0.0,
-    "lat_offset": 0.0,
-    "lon_scale": 1.0,
-    "lat_scale": 1.0,
+    "lon_offset": -1.3969864645612318,
+    "lat_offset": 1.0402006849660639,
+    "lon_scale": 0.7942931471392843,
+    "lat_scale": 0.5162884793973729,
     "west_adjustment": 0.0,
     "east_adjustment": 0.0,
     "north_adjustment": 0.0,
@@ -14,23 +14,16 @@
     "skew_y": 0.0
   },
   "instructions": {
-    "lon_offset": "Shift entire image east (+) or west (-) in degrees",
-    "lat_offset": "Shift entire image north (+) or south (-) in degrees",
-    "lon_scale": "Stretch/compress horizontally (>1 = wider, <1 = narrower)",
-    "lat_scale": "Stretch/compress vertically (>1 = taller, <1 = shorter)",
-    "west_adjustment": "Adjust western bound specifically in degrees",
-    "east_adjustment": "Adjust eastern bound specifically in degrees",
-    "north_adjustment": "Adjust northern bound specifically in degrees",
-    "south_adjustment": "Adjust southern bound specifically in degrees",
-    "rotation_degrees": "Rotate image clockwise (+ degrees, not yet implemented in backend)",
-    "skew_x": "Horizontal skew/shear in degrees (not yet implemented in backend)",
-    "skew_y": "Vertical skew/shear in degrees (not yet implemented in backend)"
+    "note": "These values were computed automatically to maximize alignment",
+    "lon_offset": "Shift entire image east (+) or west (-) in degrees: -1.397\u00b0",
+    "lat_offset": "Shift entire image north (+) or south (-) in degrees: +1.040\u00b0",
+    "lon_scale": "Horizontal scale factor: 0.794x",
+    "lat_scale": "Vertical scale factor: 0.516x"
   },
-  "examples": {
-    "shift_east_5_degrees": {"lon_offset": 5.0},
-    "shift_north_half_degree": {"lat_offset": 0.5},
-    "make_50_percent_wider": {"lon_scale": 1.5},
-    "expand_west_edge_2_degrees": {"west_adjustment": -2.0},
-    "rotate_15_degrees_clockwise": {"rotation_degrees": 15.0}
+  "optimal_bounds": {
+    "west": -195.93090688492023,
+    "south": 51.23417834802149,
+    "east": -126.2019605906281,
+    "north": 69.55206432516226
   }
 }
