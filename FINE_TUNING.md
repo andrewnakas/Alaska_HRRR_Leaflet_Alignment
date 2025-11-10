@@ -6,10 +6,97 @@ This system allows you to fine-tune the alignment, positioning, scale, and bound
 
 ## Quick Start
 
+### Option 1: Interactive Web UI (Recommended) 🎨
+
+1. **Open** `alignment-ui.html` in your web browser
+2. **Adjust** sliders to fine-tune positioning, scale, and bounds
+3. **Preview** changes in real-time on the map
+4. **Export** configuration when satisfied
+5. **Run** `python3 fine_tune_alignment.py`
+6. **Commit and push** to deploy
+
+### Option 2: Manual Configuration 📝
+
 1. **Edit** `alignment_config.json` with your desired adjustments
 2. **Run** `python3 fine_tune_alignment.py`
 3. **Refresh** your browser to see the changes
 4. **Repeat** until perfect!
+
+## Web UI: `alignment-ui.html`
+
+### Features
+
+- **🎨 Real-time preview**: See adjustments immediately on the map
+- **🎚️ Interactive sliders**: All parameters with visual feedback
+- **📊 Live bounds display**: See exact coordinates as you adjust
+- **💾 Export configuration**: One-click export to JSON file
+- **📋 Copy to clipboard**: Quick copy for manual edits
+- **🔄 Presets**: Quick apply common adjustments (shift, expand, shrink)
+- **🌙 Dark theme**: Easy on the eyes for long tuning sessions
+
+### How to Use
+
+1. **Open the UI**:
+   ```bash
+   # In your browser, open:
+   file:///home/user/Alaska_HRRR_Leaflet_Alignment/alignment-ui.html
+
+   # Or serve it locally:
+   python3 -m http.server 8000
+   # Then visit: http://localhost:8000/alignment-ui.html
+   ```
+
+2. **Adjust parameters**:
+   - Move sliders to adjust position, scale, or edges
+   - See current values update in real-time
+   - Preview bounds calculations at bottom
+
+3. **Preview changes**:
+   - Click "✓ Apply Adjustments" to update the map
+   - Visual preview shows how image will align
+   - Red boundary shows actual GRIB2 grid edges
+
+4. **Export when ready**:
+   - Click "💾 Export Config" to download `alignment_config.json`
+   - Or click "📋 Copy JSON" to copy to clipboard
+   - Save the downloaded file to your project directory
+
+5. **Apply to production**:
+   ```bash
+   python3 fine_tune_alignment.py
+   git add alignment_config.json images/hrrr_continuous.png test-data.json
+   git commit -m "Fine-tune alignment"
+   git push
+   ```
+
+### UI Controls
+
+| Control | Range | Purpose |
+|---------|-------|---------|
+| **Longitude Offset** | -5° to +5° | Shift entire image east/west |
+| **Latitude Offset** | -5° to +5° | Shift entire image north/south |
+| **Longitude Scale** | 0.8x to 1.2x | Stretch/compress width |
+| **Latitude Scale** | 0.8x to 1.2x | Stretch/compress height |
+| **West Edge** | -5° to +5° | Adjust western boundary |
+| **East Edge** | -5° to +5° | Adjust eastern boundary |
+| **North Edge** | -5° to +5° | Adjust northern boundary |
+| **South Edge** | -5° to +5° | Adjust southern boundary |
+
+### Preset Buttons
+
+- **Shift East 1°**: Quick test of eastward movement
+- **Shift West 1°**: Quick test of westward movement
+- **Expand 10%**: Make image 10% larger in both dimensions
+- **Shrink 10%**: Make image 10% smaller in both dimensions
+
+### Tips for Using the UI
+
+1. **Start with offsets**: If entire image is misaligned, use lon/lat offsets first
+2. **Then adjust scale**: Fix overall size with scale sliders
+3. **Fine-tune edges**: Use edge adjustments for perfect alignment
+4. **Use Apply frequently**: Click "Apply Adjustments" often to preview
+5. **Compare with boundary**: Red polygon shows actual grid - match it exactly
+6. **Export when satisfied**: Save your config and run the Python script
 
 ## Configuration File: `alignment_config.json`
 
