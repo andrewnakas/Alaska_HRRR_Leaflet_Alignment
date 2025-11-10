@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HRRR Alaska Alignment Tuner</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #controls {
+            width: 350px;
+            background: #2c3e50;
+            color: #ecf0f1;
+            overflow-y: auto;
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+        }
+
+        #map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        h1 {
+            margin: 0 0 20px 0;
+            font-size: 20px;
+            color: #3498db;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #34495e;
+            border-radius: 8px;
+        }
+
+        .control-group h3 {
+            margin: 0 0 15px 0;
+            font-size: 14px;
+            color: #3498db;
+            border-bottom: 1px solid #3498db;
+            padding-bottom: 8px;
+        }
+
+        .control-item {
+            margin-bottom: 15px;
+        }
+
+        .control-item label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #bdc3c7;
+        }
+
+        .control-item input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+        }
+
+        .control-item input[type="number"] {
+            width: 80px;
+            padding: 5px;
+            border: 1px solid #3498db;
+            background: #2c3e50;
+            color: #ecf0f1;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .value-display {
+            display: inline-block;
+            margin-left: 10px;
+            font-weight: bold;
+            color: #3498db;
+            min-width: 60px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button.secondary {
+            background: #95a5a6;
+        }
+
+        button.secondary:hover {
+            background: #7f8c8d;
+        }
+
+        button.danger {
+            background: #e74c3c;
+        }
+
+        button.danger:hover {
+            background: #c0392b;
+        }
+
+        #status {
+            padding: 15px;
+            background: #27ae60;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+
+        #status.error {
+            background: #e74c3c;
+        }
+
+        #bounds-info {
+            background: #34495e;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+        }
+
+        #bounds-info div {
+            margin: 4px 0;
+        }
+
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .preset-buttons button {
+            padding: 8px;
+            font-size: 11px;
+        }
+
+        code {
+            background: #2c3e50;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #3498db;
+            font-size: 11px;
+        }
+
+        .help-text {
+            font-size: 11px;
+            color: #95a5a6;
+            margin-top: 5px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <h1>🎯 Alignment Tuner</h1>
+
+        <div id="status">
+            ✓ Ready - Adjust controls to fine-tune alignment
+        </div>
+
+        <!-- Global Position -->
+        <div class="control-group">
+            <h3>🌍 Global Position</h3>
+
+            <div class="control-item">
+                <label>Longitude Offset (East/West Shift)</label>
+                <input type="range" id="lon_offset" min="-5" max="5" step="0.1" value="0">
+                <span class="value-display" id="lon_offset_val">0.0°</span>
+                <div class="help-text">Positive = shift east, Negative = shift west</div>
+            </div>
+
+            <div class="control-item">
+                <label>Latitude Offset (North/South Shift)</label>
+                <input type="range" id="lat_offset" min="-5" max="5" step="0.1" value="0">
+                <span class="value-display" id="lat_offset_val">0.0°</span>
+                <div class="help-text">Positive = shift north, Negative = shift south</div>
+            </div>
+        </div>
+
+        <!-- Scaling -->
+        <div class="control-group">
+            <h3>📏 Scaling</h3>
+
+            <div class="control-item">
+                <label>Longitude Scale (Width)</label>
+                <input type="range" id="lon_scale" min="0.8" max="1.2" step="0.01" value="1">
+                <span class="value-display" id="lon_scale_val">1.00x</span>
+                <div class="help-text">1.0 = original, >1.0 = wider, <1.0 = narrower</div>
+            </div>
+
+            <div class="control-item">
+                <label>Latitude Scale (Height)</label>
+                <input type="range" id="lat_scale" min="0.8" max="1.2" step="0.01" value="1">
+                <span class="value-display" id="lat_scale_val">1.00x</span>
+                <div class="help-text">1.0 = original, >1.0 = taller, <1.0 = shorter</div>
+            </div>
+        </div>
+
+        <!-- Edge Adjustments -->
+        <div class="control-group">
+            <h3>🎚️ Edge Fine-Tuning</h3>
+
+            <div class="control-item">
+                <label>West Edge</label>
+                <input type="range" id="west_adjustment" min="-5" max="5" step="0.1" value="0">
+                <span class="value-display" id="west_adjustment_val">0.0°</span>
+            </div>
+
+            <div class="control-item">
+                <label>East Edge</label>
+                <input type="range" id="east_adjustment" min="-5" max="5" step="0.1" value="0">
+                <span class="value-display" id="east_adjustment_val">0.0°</span>
+            </div>
+
+            <div class="control-item">
+                <label>North Edge</label>
+                <input type="range" id="north_adjustment" min="-5" max="5" step="0.1" value="0">
+                <span class="value-display" id="north_adjustment_val">0.0°</span>
+            </div>
+
+            <div class="control-item">
+                <label>South Edge</label>
+                <input type="range" id="south_adjustment" min="-5" max="5" step="0.1" value="0">
+                <span class="value-display" id="south_adjustment_val">0.0°</span>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="control-group">
+            <h3>⚡ Actions</h3>
+
+            <button onclick="applyAdjustments()">
+                ✓ Apply Adjustments
+            </button>
+
+            <button class="secondary" onclick="exportConfig()">
+                💾 Export Config
+            </button>
+
+            <button class="secondary" onclick="copyToClipboard()">
+                📋 Copy JSON
+            </button>
+
+            <button class="danger" onclick="resetAll()">
+                🔄 Reset All
+            </button>
+
+            <div class="preset-buttons">
+                <button onclick="loadPreset('shift_east')">Shift East 1°</button>
+                <button onclick="loadPreset('shift_west')">Shift West 1°</button>
+                <button onclick="loadPreset('expand_10')">Expand 10%</button>
+                <button onclick="loadPreset('shrink_10')">Shrink 10%</button>
+            </div>
+        </div>
+
+        <!-- Bounds Info -->
+        <div id="bounds-info">
+            <div><strong>Current Bounds:</strong></div>
+            <div>West: <span id="bounds_west">-203.56</span>°</div>
+            <div>South: <span id="bounds_south">41.61</span>°</div>
+            <div>East: <span id="bounds_east">-115.78</span>°</div>
+            <div>North: <span id="bounds_north">77.09</span>°</div>
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #3498db;">
+                Span: <span id="bounds_span_lon">87.8</span>° × <span id="bounds_span_lat">35.5</span>°
+            </div>
+        </div>
+    </div>
+
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Base bounds (from test-data.json)
+        const BASE_BOUNDS = {
+            west: -203.5632,
+            south: 41.6129,
+            east: -115.7757,
+            north: 77.0929
+        };
+
+        let map;
+        let imageOverlay;
+        let boundaryPolygon;
+
+        // Initialize map
+        function initMap() {
+            map = L.map('map', {
+                center: [60, -155],
+                zoom: 4,
+                minZoom: 2,
+                maxZoom: 10
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            // Load initial data
+            loadData();
+        }
+
+        // Load HRRR data
+        function loadData() {
+            fetch('test-data.json')
+                .then(response => response.json())
+                .then(data => {
+                    // Add image overlay
+                    const bounds = data.continuous.bounds;
+                    const imageBounds = [
+                        [bounds[1], bounds[0]],
+                        [bounds[3], bounds[2]]
+                    ];
+
+                    imageOverlay = L.imageOverlay(
+                        data.continuous.image_url,
+                        imageBounds,
+                        { opacity: 0.7 }
+                    ).addTo(map);
+
+                    // Add boundary
+                    const boundaryCoords = data.boundary_polygon.map(p => [p.lat, p.lon]);
+                    boundaryPolygon = L.polygon(boundaryCoords, {
+                        color: 'red',
+                        weight: 2,
+                        fillOpacity: 0
+                    }).addTo(map);
+
+                    map.fitBounds(imageBounds);
+
+                    updateStatus('✓ Data loaded - Ready to adjust', false);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    updateStatus('✗ Error loading data: ' + error.message, true);
+                });
+        }
+
+        // Update slider value displays
+        function updateValueDisplay(id, value, suffix = '°') {
+            const display = document.getElementById(id + '_val');
+            if (id.includes('scale')) {
+                display.textContent = value + 'x';
+            } else {
+                display.textContent = parseFloat(value).toFixed(1) + suffix;
+            }
+        }
+
+        // Calculate adjusted bounds
+        function calculateAdjustedBounds() {
+            const adjustments = {
+                lon_offset: parseFloat(document.getElementById('lon_offset').value),
+                lat_offset: parseFloat(document.getElementById('lat_offset').value),
+                lon_scale: parseFloat(document.getElementById('lon_scale').value),
+                lat_scale: parseFloat(document.getElementById('lat_scale').value),
+                west_adjustment: parseFloat(document.getElementById('west_adjustment').value),
+                east_adjustment: parseFloat(document.getElementById('east_adjustment').value),
+                north_adjustment: parseFloat(document.getElementById('north_adjustment').value),
+                south_adjustment: parseFloat(document.getElementById('south_adjustment').value)
+            };
+
+            let { west, south, east, north } = BASE_BOUNDS;
+
+            // Apply edge adjustments
+            west += adjustments.west_adjustment;
+            east += adjustments.east_adjustment;
+            south += adjustments.south_adjustment;
+            north += adjustments.north_adjustment;
+
+            // Calculate center
+            const centerLon = (west + east) / 2;
+            const centerLat = (south + north) / 2;
+
+            // Apply scaling
+            const lonSpan = (east - west) * adjustments.lon_scale;
+            const latSpan = (north - south) * adjustments.lat_scale;
+
+            west = centerLon - lonSpan / 2;
+            east = centerLon + lonSpan / 2;
+            south = centerLat - latSpan / 2;
+            north = centerLat + latSpan / 2;
+
+            // Apply offsets
+            west += adjustments.lon_offset;
+            east += adjustments.lon_offset;
+            south += adjustments.lat_offset;
+            north += adjustments.lat_offset;
+
+            return { west, south, east, north };
+        }
+
+        // Update bounds display
+        function updateBoundsDisplay() {
+            const bounds = calculateAdjustedBounds();
+
+            document.getElementById('bounds_west').textContent = bounds.west.toFixed(2);
+            document.getElementById('bounds_south').textContent = bounds.south.toFixed(2);
+            document.getElementById('bounds_east').textContent = bounds.east.toFixed(2);
+            document.getElementById('bounds_north').textContent = bounds.north.toFixed(2);
+
+            const spanLon = bounds.east - bounds.west;
+            const spanLat = bounds.north - bounds.south;
+
+            document.getElementById('bounds_span_lon').textContent = spanLon.toFixed(1);
+            document.getElementById('bounds_span_lat').textContent = spanLat.toFixed(1);
+        }
+
+        // Apply adjustments to map
+        function applyAdjustments() {
+            const bounds = calculateAdjustedBounds();
+
+            const imageBounds = [
+                [bounds.south, bounds.west],
+                [bounds.north, bounds.east]
+            ];
+
+            if (imageOverlay) {
+                imageOverlay.setBounds(imageBounds);
+                map.fitBounds(imageBounds);
+            }
+
+            updateStatus('✓ Adjustments applied to preview', false);
+        }
+
+        // Export configuration
+        function exportConfig() {
+            const config = {
+                comment: "Fine-tuning configuration for HRRR Alaska alignment",
+                adjustments: {
+                    lon_offset: parseFloat(document.getElementById('lon_offset').value),
+                    lat_offset: parseFloat(document.getElementById('lat_offset').value),
+                    lon_scale: parseFloat(document.getElementById('lon_scale').value),
+                    lat_scale: parseFloat(document.getElementById('lat_scale').value),
+                    west_adjustment: parseFloat(document.getElementById('west_adjustment').value),
+                    east_adjustment: parseFloat(document.getElementById('east_adjustment').value),
+                    north_adjustment: parseFloat(document.getElementById('north_adjustment').value),
+                    south_adjustment: parseFloat(document.getElementById('south_adjustment').value),
+                    rotation_degrees: 0.0
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'alignment_config.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            updateStatus('✓ Configuration exported to alignment_config.json', false);
+        }
+
+        // Copy to clipboard
+        function copyToClipboard() {
+            const config = {
+                adjustments: {
+                    lon_offset: parseFloat(document.getElementById('lon_offset').value),
+                    lat_offset: parseFloat(document.getElementById('lat_offset').value),
+                    lon_scale: parseFloat(document.getElementById('lon_scale').value),
+                    lat_scale: parseFloat(document.getElementById('lat_scale').value),
+                    west_adjustment: parseFloat(document.getElementById('west_adjustment').value),
+                    east_adjustment: parseFloat(document.getElementById('east_adjustment').value),
+                    north_adjustment: parseFloat(document.getElementById('north_adjustment').value),
+                    south_adjustment: parseFloat(document.getElementById('south_adjustment').value)
+                }
+            };
+
+            navigator.clipboard.writeText(JSON.stringify(config, null, 2))
+                .then(() => {
+                    updateStatus('✓ Configuration copied to clipboard', false);
+                })
+                .catch(err => {
+                    updateStatus('✗ Failed to copy: ' + err.message, true);
+                });
+        }
+
+        // Reset all adjustments
+        function resetAll() {
+            document.getElementById('lon_offset').value = 0;
+            document.getElementById('lat_offset').value = 0;
+            document.getElementById('lon_scale').value = 1;
+            document.getElementById('lat_scale').value = 1;
+            document.getElementById('west_adjustment').value = 0;
+            document.getElementById('east_adjustment').value = 0;
+            document.getElementById('north_adjustment').value = 0;
+            document.getElementById('south_adjustment').value = 0;
+
+            updateAllDisplays();
+            applyAdjustments();
+
+            updateStatus('✓ Reset to default values', false);
+        }
+
+        // Load preset
+        function loadPreset(preset) {
+            resetAll();
+
+            switch(preset) {
+                case 'shift_east':
+                    document.getElementById('lon_offset').value = 1;
+                    break;
+                case 'shift_west':
+                    document.getElementById('lon_offset').value = -1;
+                    break;
+                case 'expand_10':
+                    document.getElementById('lon_scale').value = 1.1;
+                    document.getElementById('lat_scale').value = 1.1;
+                    break;
+                case 'shrink_10':
+                    document.getElementById('lon_scale').value = 0.9;
+                    document.getElementById('lat_scale').value = 0.9;
+                    break;
+            }
+
+            updateAllDisplays();
+            applyAdjustments();
+        }
+
+        // Update status message
+        function updateStatus(message, isError) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            if (isError) {
+                status.classList.add('error');
+            } else {
+                status.classList.remove('error');
+            }
+        }
+
+        // Update all displays
+        function updateAllDisplays() {
+            updateValueDisplay('lon_offset', document.getElementById('lon_offset').value);
+            updateValueDisplay('lat_offset', document.getElementById('lat_offset').value);
+            updateValueDisplay('lon_scale', document.getElementById('lon_scale').value);
+            updateValueDisplay('lat_scale', document.getElementById('lat_scale').value);
+            updateValueDisplay('west_adjustment', document.getElementById('west_adjustment').value);
+            updateValueDisplay('east_adjustment', document.getElementById('east_adjustment').value);
+            updateValueDisplay('north_adjustment', document.getElementById('north_adjustment').value);
+            updateValueDisplay('south_adjustment', document.getElementById('south_adjustment').value);
+            updateBoundsDisplay();
+        }
+
+        // Setup event listeners
+        document.querySelectorAll('input[type="range"]').forEach(input => {
+            input.addEventListener('input', function() {
+                updateValueDisplay(this.id, this.value);
+                updateBoundsDisplay();
+            });
+        });
+
+        // Initialize
+        initMap();
+        updateAllDisplays();
+    </script>
+</body>
+</html>
