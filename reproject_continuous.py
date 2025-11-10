@@ -217,7 +217,7 @@ def main():
     ax.imshow(dst_data, cmap=cmap, aspect='auto',
               extent=[lon_min, lon_max, lat_min, lat_max],
               vmin=vmin, vmax=vmax, interpolation='bilinear',
-              origin='upper')
+              origin='lower')
 
     images_dir = Path('images')
     images_dir.mkdir(exist_ok=True)
