@@ -9,7 +9,9 @@
     "east_adjustment": 0.0,
     "north_adjustment": 0.0,
     "south_adjustment": 0.0,
-    "rotation_degrees": 0.0
+    "rotation_degrees": 0.0,
+    "skew_x": 0.0,
+    "skew_y": 0.0
   },
   "instructions": {
     "lon_offset": "Shift entire image east (+) or west (-) in degrees",
@@ -20,12 +22,15 @@
     "east_adjustment": "Adjust eastern bound specifically in degrees",
     "north_adjustment": "Adjust northern bound specifically in degrees",
     "south_adjustment": "Adjust southern bound specifically in degrees",
-    "rotation_degrees": "Rotate image clockwise (+ degrees, not yet implemented)"
+    "rotation_degrees": "Rotate image clockwise (+ degrees, not yet implemented in backend)",
+    "skew_x": "Horizontal skew/shear in degrees (not yet implemented in backend)",
+    "skew_y": "Vertical skew/shear in degrees (not yet implemented in backend)"
   },
   "examples": {
-    "shift_east_1_degree": {"lon_offset": 1.0},
+    "shift_east_5_degrees": {"lon_offset": 5.0},
     "shift_north_half_degree": {"lat_offset": 0.5},
-    "make_10_percent_wider": {"lon_scale": 1.1},
-    "expand_west_edge_2_degrees": {"west_adjustment": -2.0}
+    "make_50_percent_wider": {"lon_scale": 1.5},
+    "expand_west_edge_2_degrees": {"west_adjustment": -2.0},
+    "rotate_15_degrees_clockwise": {"rotation_degrees": 15.0}
   }
 }

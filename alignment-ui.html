@@ -192,14 +192,14 @@
 
             <div class="control-item">
                 <label>Longitude Offset (East/West Shift)</label>
-                <input type="range" id="lon_offset" min="-5" max="5" step="0.1" value="0">
+                <input type="range" id="lon_offset" min="-100" max="100" step="0.5" value="0">
                 <span class="value-display" id="lon_offset_val">0.0°</span>
                 <div class="help-text">Positive = shift east, Negative = shift west</div>
             </div>
 
             <div class="control-item">
                 <label>Latitude Offset (North/South Shift)</label>
-                <input type="range" id="lat_offset" min="-5" max="5" step="0.1" value="0">
+                <input type="range" id="lat_offset" min="-100" max="100" step="0.5" value="0">
                 <span class="value-display" id="lat_offset_val">0.0°</span>
                 <div class="help-text">Positive = shift north, Negative = shift south</div>
             </div>
@@ -211,14 +211,14 @@
 
             <div class="control-item">
                 <label>Longitude Scale (Width)</label>
-                <input type="range" id="lon_scale" min="0.8" max="1.2" step="0.01" value="1">
+                <input type="range" id="lon_scale" min="0.1" max="5.0" step="0.05" value="1">
                 <span class="value-display" id="lon_scale_val">1.00x</span>
                 <div class="help-text">1.0 = original, >1.0 = wider, <1.0 = narrower</div>
             </div>
 
             <div class="control-item">
                 <label>Latitude Scale (Height)</label>
-                <input type="range" id="lat_scale" min="0.8" max="1.2" step="0.01" value="1">
+                <input type="range" id="lat_scale" min="0.1" max="5.0" step="0.05" value="1">
                 <span class="value-display" id="lat_scale_val">1.00x</span>
                 <div class="help-text">1.0 = original, >1.0 = taller, <1.0 = shorter</div>
             </div>
@@ -230,26 +230,52 @@
 
             <div class="control-item">
                 <label>West Edge</label>
-                <input type="range" id="west_adjustment" min="-5" max="5" step="0.1" value="0">
+                <input type="range" id="west_adjustment" min="-100" max="100" step="0.5" value="0">
                 <span class="value-display" id="west_adjustment_val">0.0°</span>
             </div>
 
             <div class="control-item">
                 <label>East Edge</label>
-                <input type="range" id="east_adjustment" min="-5" max="5" step="0.1" value="0">
+                <input type="range" id="east_adjustment" min="-100" max="100" step="0.5" value="0">
                 <span class="value-display" id="east_adjustment_val">0.0°</span>
             </div>
 
             <div class="control-item">
                 <label>North Edge</label>
-                <input type="range" id="north_adjustment" min="-5" max="5" step="0.1" value="0">
+                <input type="range" id="north_adjustment" min="-100" max="100" step="0.5" value="0">
                 <span class="value-display" id="north_adjustment_val">0.0°</span>
             </div>
 
             <div class="control-item">
                 <label>South Edge</label>
-                <input type="range" id="south_adjustment" min="-5" max="5" step="0.1" value="0">
+                <input type="range" id="south_adjustment" min="-100" max="100" step="0.5" value="0">
                 <span class="value-display" id="south_adjustment_val">0.0°</span>
+            </div>
+        </div>
+
+        <!-- Rotation & Advanced -->
+        <div class="control-group">
+            <h3>🔄 Rotation & Advanced</h3>
+
+            <div class="control-item">
+                <label>Rotation (Clockwise)</label>
+                <input type="range" id="rotation_degrees" min="-180" max="180" step="1" value="0">
+                <span class="value-display" id="rotation_degrees_val">0.0°</span>
+                <div class="help-text">Rotate the overlay clockwise (+) or counter-clockwise (-)</div>
+            </div>
+
+            <div class="control-item">
+                <label>Horizontal Skew</label>
+                <input type="range" id="skew_x" min="-45" max="45" step="1" value="0">
+                <span class="value-display" id="skew_x_val">0.0°</span>
+                <div class="help-text">Skew horizontally (shear transformation)</div>
+            </div>
+
+            <div class="control-item">
+                <label>Vertical Skew</label>
+                <input type="range" id="skew_y" min="-45" max="45" step="1" value="0">
+                <span class="value-display" id="skew_y_val">0.0°</span>
+                <div class="help-text">Skew vertically (shear transformation)</div>
             </div>
         </div>
 
@@ -274,10 +300,14 @@
             </button>
 
             <div class="preset-buttons">
-                <button onclick="loadPreset('shift_east')">Shift East 1°</button>
-                <button onclick="loadPreset('shift_west')">Shift West 1°</button>
-                <button onclick="loadPreset('expand_10')">Expand 10%</button>
-                <button onclick="loadPreset('shrink_10')">Shrink 10%</button>
+                <button onclick="loadPreset('shift_east')">Shift East 5°</button>
+                <button onclick="loadPreset('shift_west')">Shift West 5°</button>
+                <button onclick="loadPreset('shift_north')">Shift North 5°</button>
+                <button onclick="loadPreset('shift_south')">Shift South 5°</button>
+                <button onclick="loadPreset('expand_50')">Expand 50%</button>
+                <button onclick="loadPreset('shrink_50')">Shrink 50%</button>
+                <button onclick="loadPreset('rotate_cw')">Rotate +15°</button>
+                <button onclick="loadPreset('rotate_ccw')">Rotate -15°</button>
             </div>
         </div>
 
@@ -466,7 +496,9 @@
                     east_adjustment: parseFloat(document.getElementById('east_adjustment').value),
                     north_adjustment: parseFloat(document.getElementById('north_adjustment').value),
                     south_adjustment: parseFloat(document.getElementById('south_adjustment').value),
-                    rotation_degrees: 0.0
+                    rotation_degrees: parseFloat(document.getElementById('rotation_degrees').value),
+                    skew_x: parseFloat(document.getElementById('skew_x').value),
+                    skew_y: parseFloat(document.getElementById('skew_y').value)
                 }
             };
 
@@ -494,7 +526,10 @@
                     west_adjustment: parseFloat(document.getElementById('west_adjustment').value),
                     east_adjustment: parseFloat(document.getElementById('east_adjustment').value),
                     north_adjustment: parseFloat(document.getElementById('north_adjustment').value),
-                    south_adjustment: parseFloat(document.getElementById('south_adjustment').value)
+                    south_adjustment: parseFloat(document.getElementById('south_adjustment').value),
+                    rotation_degrees: parseFloat(document.getElementById('rotation_degrees').value),
+                    skew_x: parseFloat(document.getElementById('skew_x').value),
+                    skew_y: parseFloat(document.getElementById('skew_y').value)
                 }
             };
 
@@ -517,6 +552,9 @@
             document.getElementById('east_adjustment').value = 0;
             document.getElementById('north_adjustment').value = 0;
             document.getElementById('south_adjustment').value = 0;
+            document.getElementById('rotation_degrees').value = 0;
+            document.getElementById('skew_x').value = 0;
+            document.getElementById('skew_y').value = 0;
 
             updateAllDisplays();
             applyAdjustments();
@@ -530,18 +568,30 @@
 
             switch(preset) {
                 case 'shift_east':
-                    document.getElementById('lon_offset').value = 1;
+                    document.getElementById('lon_offset').value = 5;
                     break;
                 case 'shift_west':
-                    document.getElementById('lon_offset').value = -1;
+                    document.getElementById('lon_offset').value = -5;
                     break;
-                case 'expand_10':
-                    document.getElementById('lon_scale').value = 1.1;
-                    document.getElementById('lat_scale').value = 1.1;
+                case 'shift_north':
+                    document.getElementById('lat_offset').value = 5;
                     break;
-                case 'shrink_10':
-                    document.getElementById('lon_scale').value = 0.9;
-                    document.getElementById('lat_scale').value = 0.9;
+                case 'shift_south':
+                    document.getElementById('lat_offset').value = -5;
+                    break;
+                case 'expand_50':
+                    document.getElementById('lon_scale').value = 1.5;
+                    document.getElementById('lat_scale').value = 1.5;
+                    break;
+                case 'shrink_50':
+                    document.getElementById('lon_scale').value = 0.5;
+                    document.getElementById('lat_scale').value = 0.5;
+                    break;
+                case 'rotate_cw':
+                    document.getElementById('rotation_degrees').value = 15;
+                    break;
+                case 'rotate_ccw':
+                    document.getElementById('rotation_degrees').value = -15;
                     break;
             }
 
@@ -570,6 +620,9 @@
             updateValueDisplay('east_adjustment', document.getElementById('east_adjustment').value);
             updateValueDisplay('north_adjustment', document.getElementById('north_adjustment').value);
             updateValueDisplay('south_adjustment', document.getElementById('south_adjustment').value);
+            updateValueDisplay('rotation_degrees', document.getElementById('rotation_degrees').value);
+            updateValueDisplay('skew_x', document.getElementById('skew_x').value);
+            updateValueDisplay('skew_y', document.getElementById('skew_y').value);
             updateBoundsDisplay();
         }
 
