@@ -1611,11 +1611,11 @@
     }
   ],
   "_metadata": {
-    "generated": "2025-11-10T00:32:04.334273Z",
-    "method": "fine_tuned_continuous_longitude",
+    "generated": "2025-11-10T01:34:44.790351Z",
+    "method": "continuous_longitude_russia_to_alaska",
     "source": "NOAA HRRR Alaska - REFC",
     "model": "hrrrak",
-    "date": "2025-11-09T21:00:00",
+    "date": "2025-11-10T00:00:00",
     "variable": "REFC",
     "source_grid_shape": [
       919,
@@ -1625,37 +1625,7 @@
       1182,
       2926
     ],
-    "base_bounds": [
-      -203.56315738856958,
-      41.612949,
-      -115.7757371578563,
-      77.09289230325162
-    ],
-    "adjusted_bounds": [
-      -203.56315738856958,
-      41.612949,
-      -115.7757371578563,
-      77.09289230325162
-    ],
-    "adjustments_applied": {
-      "lon_offset": 0.0,
-      "lat_offset": 0.0,
-      "lon_scale": 1.0,
-      "lat_scale": 1.0,
-      "west_adjustment": 0.0,
-      "east_adjustment": 0.0,
-      "north_adjustment": 0.0,
-      "south_adjustment": 0.0,
-      "rotation_degrees": 0.0
-    },
-    "alignment_error": {
-      "west": 0.0,
-      "south": 0.0,
-      "east": 0.0,
-      "north": 0.0002261643118970369,
-      "total": 0.0002261643118970369
-    },
     "longitude_span": "87.8\u00b0",
-    "note": "Fine-tuned alignment using alignment_config.json"
+    "note": "Continuous longitude from Russia to Alaska - no world-wrapping"
   }
 }

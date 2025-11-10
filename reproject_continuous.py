@@ -214,7 +214,10 @@ def main():
     ax.set_position([0, 0, 1, 1])
     ax.axis('off')
 
-    ax.imshow(dst_data, cmap=cmap, aspect='auto',
+    # Rotate 180 degrees (flip both vertically and horizontally)
+    dst_data_rotated = np.flip(np.flip(dst_data, axis=0), axis=1)
+
+    ax.imshow(dst_data_rotated, cmap=cmap, aspect='auto',
               extent=[lon_min, lon_max, lat_min, lat_max],
               vmin=vmin, vmax=vmax, interpolation='bilinear',
               origin='lower')
