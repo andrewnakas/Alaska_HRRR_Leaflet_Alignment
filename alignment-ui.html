@@ -188,51 +188,56 @@
 
         <!-- Alignment Presets -->
         <div class="control-group">
-            <h3>🔬 Quick Test Presets</h3>
+            <h3>🔬 Research-Based Alignment Presets</h3>
             <p style="font-size: 12px; color: #95a5a6; margin-bottom: 10px;">
-                Click a preset to try different alignment strategies. Find which one looks closest, then fine-tune with sliders below.
+                <strong>Based on HRRR Alaska polar stereographic projection research.</strong><br>
+                Each preset tests common reprojection issues:<br>
+                • Cell center vs edge alignment (±1.5°)<br>
+                • Polar distortion aspect ratio corrections<br>
+                • Projection center rotation offsets<br>
+                Click through to find which aligns best, then fine-tune.
             </p>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 5px;">
                 <button onclick="loadAlignmentPreset(1)" style="padding: 10px; font-size: 11px; text-align: left;">
                     <strong>1. Baseline</strong><br>
-                    <small style="opacity: 0.8;">Current (no changes)</small>
+                    <small style="opacity: 0.8;">Current reprojection</small>
                 </button>
                 <button onclick="loadAlignmentPreset(2)" style="padding: 10px; font-size: 11px; text-align: left;">
-                    <strong>2. East Shift +50°</strong><br>
-                    <small style="opacity: 0.8;">Major eastward offset</small>
+                    <strong>2. Half-Cell East</strong><br>
+                    <small style="opacity: 0.8;">+1.5° shift (cell edge)</small>
                 </button>
                 <button onclick="loadAlignmentPreset(3)" style="padding: 10px; font-size: 11px; text-align: left;">
-                    <strong>3. West Shift -50°</strong><br>
-                    <small style="opacity: 0.8;">Major westward offset</small>
+                    <strong>3. Half-Cell West</strong><br>
+                    <small style="opacity: 0.8;">-1.5° shift (cell edge)</small>
                 </button>
                 <button onclick="loadAlignmentPreset(4)" style="padding: 10px; font-size: 11px; text-align: left;">
-                    <strong>4. Narrow (0.5x)</strong><br>
-                    <small style="opacity: 0.8;">Compress horizontal</small>
+                    <strong>4. Polar Narrow</strong><br>
+                    <small style="opacity: 0.8;">0.85x lon (aspect fix)</small>
                 </button>
                 <button onclick="loadAlignmentPreset(5)" style="padding: 10px; font-size: 11px; text-align: left;">
-                    <strong>5. Wide (1.5x)</strong><br>
-                    <small style="opacity: 0.8;">Expand horizontal</small>
+                    <strong>5. Polar Wide</strong><br>
+                    <small style="opacity: 0.8;">1.15x lon (aspect fix)</small>
                 </button>
                 <button onclick="loadAlignmentPreset(6)" style="padding: 10px; font-size: 11px; text-align: left;">
-                    <strong>6. Short (0.7x)</strong><br>
-                    <small style="opacity: 0.8;">Compress vertical</small>
+                    <strong>6. Lat Compress</strong><br>
+                    <small style="opacity: 0.8;">0.9x lat (distortion)</small>
                 </button>
                 <button onclick="loadAlignmentPreset(7)" style="padding: 10px; font-size: 11px; text-align: left;">
-                    <strong>7. Tall (1.3x)</strong><br>
-                    <small style="opacity: 0.8;">Expand vertical</small>
+                    <strong>7. Rotate +10°</strong><br>
+                    <small style="opacity: 0.8;">Center offset (CW)</small>
                 </button>
                 <button onclick="loadAlignmentPreset(8)" style="padding: 10px; font-size: 11px; text-align: left;">
-                    <strong>8. Rotate +30°</strong><br>
-                    <small style="opacity: 0.8;">Clockwise rotation</small>
+                    <strong>8. Rotate -10°</strong><br>
+                    <small style="opacity: 0.8;">Center offset (CCW)</small>
                 </button>
                 <button onclick="loadAlignmentPreset(9)" style="padding: 10px; font-size: 11px; text-align: left;">
-                    <strong>9. Rotate -30°</strong><br>
-                    <small style="opacity: 0.8;">Counter-clockwise</small>
+                    <strong>9. West Expand</strong><br>
+                    <small style="opacity: 0.8;">+3° west edge</small>
                 </button>
                 <button onclick="loadAlignmentPreset(10)" style="padding: 10px; font-size: 11px; text-align: left;">
                     <strong>10. Combined</strong><br>
-                    <small style="opacity: 0.8;">+20° east, 0.8x scale</small>
+                    <small style="opacity: 0.8;">Shift+scale+rotate</small>
                 </button>
             </div>
 
@@ -533,6 +538,33 @@
             if (imageOverlay) {
                 imageOverlay.setBounds(imageBounds);
                 map.fitBounds(imageBounds);
+
+                // Apply CSS transforms for rotation and skew
+                const rotation = parseFloat(document.getElementById('rotation_degrees').value);
+                const skewX = parseFloat(document.getElementById('skew_x').value);
+                const skewY = parseFloat(document.getElementById('skew_y').value);
+
+                const imgElement = imageOverlay.getElement();
+                if (imgElement) {
+                    let transforms = [];
+
+                    if (rotation !== 0) {
+                        transforms.push(`rotate(${rotation}deg)`);
+                    }
+                    if (skewX !== 0) {
+                        transforms.push(`skewX(${skewX}deg)`);
+                    }
+                    if (skewY !== 0) {
+                        transforms.push(`skewY(${skewY}deg)`);
+                    }
+
+                    if (transforms.length > 0) {
+                        imgElement.style.transform = transforms.join(' ');
+                        imgElement.style.transformOrigin = 'center center';
+                    } else {
+                        imgElement.style.transform = '';
+                    }
+                }
             }
 
             updateStatus('✓ Adjustments applied to preview', false);
@@ -622,86 +654,107 @@
             // Reset first
             resetAll();
 
+            // Research-based presets for polar stereographic reprojection issues
             const presets = {
                 1: {
-                    name: '1. Baseline (No Changes)',
+                    name: '1. Baseline (Current Reprojection)',
                     lon_offset: 0,
                     lat_offset: 0,
                     lon_scale: 1.0,
                     lat_scale: 1.0,
-                    rotation: 0
+                    rotation: 0,
+                    west_adj: 0,
+                    east_adj: 0
                 },
                 2: {
-                    name: '2. East Shift +50°',
-                    lon_offset: 50,
+                    name: '2. Half-Cell Shift East (+1.5°)',
+                    lon_offset: 1.5,
                     lat_offset: 0,
                     lon_scale: 1.0,
                     lat_scale: 1.0,
-                    rotation: 0
+                    rotation: 0,
+                    west_adj: 0,
+                    east_adj: 0
                 },
                 3: {
-                    name: '3. West Shift -50°',
-                    lon_offset: -50,
+                    name: '3. Half-Cell Shift West (-1.5°)',
+                    lon_offset: -1.5,
                     lat_offset: 0,
                     lon_scale: 1.0,
                     lat_scale: 1.0,
-                    rotation: 0
+                    rotation: 0,
+                    west_adj: 0,
+                    east_adj: 0
                 },
                 4: {
-                    name: '4. Narrow (0.5x Horizontal)',
+                    name: '4. Polar Aspect Ratio (0.85x Lon)',
                     lon_offset: 0,
                     lat_offset: 0,
-                    lon_scale: 0.5,
+                    lon_scale: 0.85,
                     lat_scale: 1.0,
-                    rotation: 0
+                    rotation: 0,
+                    west_adj: 0,
+                    east_adj: 0
                 },
                 5: {
-                    name: '5. Wide (1.5x Horizontal)',
+                    name: '5. Polar Aspect Ratio (1.15x Lon)',
                     lon_offset: 0,
                     lat_offset: 0,
-                    lon_scale: 1.5,
+                    lon_scale: 1.15,
                     lat_scale: 1.0,
-                    rotation: 0
+                    rotation: 0,
+                    west_adj: 0,
+                    east_adj: 0
                 },
                 6: {
-                    name: '6. Short (0.7x Vertical)',
+                    name: '6. Latitude Compression (0.9x Lat)',
                     lon_offset: 0,
                     lat_offset: 0,
                     lon_scale: 1.0,
-                    lat_scale: 0.7,
-                    rotation: 0
+                    lat_scale: 0.9,
+                    rotation: 0,
+                    west_adj: 0,
+                    east_adj: 0
                 },
                 7: {
-                    name: '7. Tall (1.3x Vertical)',
+                    name: '7. Projection Center Rotation (+10°)',
                     lon_offset: 0,
                     lat_offset: 0,
                     lon_scale: 1.0,
-                    lat_scale: 1.3,
-                    rotation: 0
+                    lat_scale: 1.0,
+                    rotation: 10,
+                    west_adj: 0,
+                    east_adj: 0
                 },
                 8: {
-                    name: '8. Rotate +30° Clockwise',
+                    name: '8. Projection Center Rotation (-10°)',
                     lon_offset: 0,
                     lat_offset: 0,
                     lon_scale: 1.0,
                     lat_scale: 1.0,
-                    rotation: 30
+                    rotation: -10,
+                    west_adj: 0,
+                    east_adj: 0
                 },
                 9: {
-                    name: '9. Rotate -30° Counter-clockwise',
+                    name: '9. West Edge Expansion (+3° West)',
                     lon_offset: 0,
                     lat_offset: 0,
                     lon_scale: 1.0,
                     lat_scale: 1.0,
-                    rotation: -30
+                    rotation: 0,
+                    west_adj: -3,
+                    east_adj: 0
                 },
                 10: {
-                    name: '10. Combined (+20° East, 0.8x Scale)',
-                    lon_offset: 20,
+                    name: '10. Combined (Shift+Scale+Rotate)',
+                    lon_offset: 1.5,
                     lat_offset: 0,
-                    lon_scale: 0.8,
-                    lat_scale: 0.8,
-                    rotation: 0
+                    lon_scale: 0.95,
+                    lat_scale: 0.95,
+                    rotation: 5,
+                    west_adj: 0,
+                    east_adj: 0
                 }
             };
 
@@ -713,6 +766,8 @@
             document.getElementById('lon_scale').value = preset.lon_scale;
             document.getElementById('lat_scale').value = preset.lat_scale;
             document.getElementById('rotation_degrees').value = preset.rotation;
+            document.getElementById('west_adjustment').value = preset.west_adj;
+            document.getElementById('east_adjustment').value = preset.east_adj;
 
             // Update displays
             updateAllDisplays();
