@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>HRRR Alaska - Proper Alignment</title>
+    <title>HRRR Alaska - Continuous Bounds</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -50,8 +50,8 @@
         <h3>HRRR Alaska</h3>
         <div id="status">Loading...</div>
         <div style="margin-top: 10px; font-size: 11px; color: #666;">
-            Properly reprojected & aligned<br>
-            Split at dateline
+            Russia → Alaska<br>
+            Continuous bounds (no world-wrap)
         </div>
     </div>
 
@@ -59,22 +59,25 @@
 
     <script>
         console.log('='.repeat(80));
-        console.log('HRRR Alaska - Proper Alignment');
+        console.log('HRRR Alaska - Continuous Bounds (Russia → Alaska)');
         console.log('='.repeat(80));
         console.log();
 
-        // Create map
+        // Create map with world copy wrapping
         var map = L.map('map', {
             center: [60, -155],
             zoom: 4,
-            minZoom: 3,
-            maxZoom: 10
+            minZoom: 2,
+            maxZoom: 10,
+            worldCopyJump: true,  // Enable wrapping
+            maxBounds: null  // Allow panning across dateline
         });
 
         // Add OpenStreetMap base layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
-            maxZoom: 19
+            maxZoom: 19,
+            noWrap: false  // Allow tile wrapping
         }).addTo(map);
 
         // Load HRRR data
@@ -84,56 +87,40 @@
                 console.log('Loaded HRRR Alaska data:');
                 console.log('  Method:', data._metadata.method);
                 console.log('  Variable:', data._metadata.variable);
-                console.log('  Date:', data._metadata.date);
-                console.log('  Regions:', data._metadata.split_regions);
+                console.log('  Longitude span:', data._metadata.longitude_span);
                 console.log();
 
-                // Add western region (Alaska mainland)
-                if (data.western) {
-                    var westernBounds = data.western.bounds;
-                    console.log('Western region (' + data.western.label + '):');
-                    console.log('  Bounds:', westernBounds);
+                // Get continuous bounds
+                var bounds = data.continuous.bounds;
+                var west = bounds[0];
+                var south = bounds[1];
+                var east = bounds[2];
+                var north = bounds[3];
 
-                    var westernImageBounds = [
-                        [westernBounds[1], westernBounds[0]],  // Southwest
-                        [westernBounds[3], westernBounds[2]]   // Northeast
-                    ];
+                console.log('Continuous bounds (Russia → Alaska):');
+                console.log('  West:', west.toFixed(2), '°');
+                console.log('  South:', south.toFixed(2), '°');
+                console.log('  East:', east.toFixed(2), '°');
+                console.log('  North:', north.toFixed(2), '°');
+                console.log('  Span:', (east - west).toFixed(1), '° (NO world-wrapping!)');
+                console.log();
 
-                    L.imageOverlay(
-                        data.western.image_url,
-                        westernImageBounds,
-                        {
-                            opacity: 0.7,
-                            interactive: false
-                        }
-                    ).addTo(map);
+                // Add image overlay with continuous bounds
+                var imageBounds = [
+                    [south, west],
+                    [north, east]
+                ];
 
-                    console.log('  ✓ Western image added');
-                }
+                var imageOverlay = L.imageOverlay(
+                    data.continuous.image_url,
+                    imageBounds,
+                    {
+                        opacity: 0.7,
+                        interactive: false
+                    }
+                ).addTo(map);
 
-                // Add eastern region (Aleutians)
-                if (data.eastern) {
-                    var easternBounds = data.eastern.bounds;
-                    console.log('Eastern region (' + data.eastern.label + '):');
-                    console.log('  Bounds:', easternBounds);
-
-                    var easternImageBounds = [
-                        [easternBounds[1], easternBounds[0]],  // Southwest
-                        [easternBounds[3], easternBounds[2]]   // Northeast
-                    ];
-
-                    L.imageOverlay(
-                        data.eastern.image_url,
-                        easternImageBounds,
-                        {
-                            opacity: 0.7,
-                            interactive: false
-                        }
-                    ).addTo(map);
-
-                    console.log('  ✓ Eastern image added');
-                }
-
+                console.log('✓ Image overlay added');
                 console.log();
 
                 // Add boundary polygon
@@ -149,48 +136,29 @@
                 console.log('✓ Boundary polygon added (' + boundaryCoords.length + ' points)');
                 console.log();
 
-                // Calculate alignment check
+                // Get boundary extent
                 var lats = data.boundary_polygon.map(p => p.lat);
                 var lons = data.boundary_polygon.map(p => p.lon);
 
-                // Separate western and eastern hemispheres
-                var westLons = lons.filter(lon => lon < 0);
-                var eastLons = lons.filter(lon => lon > 0);
-
                 console.log('Boundary extent:');
-                console.log('  Latitude: ' + Math.min(...lats).toFixed(2) + '° to ' + Math.max(...lats).toFixed(2) + '°');
-                console.log('  Western hemisphere: ' + Math.min(...westLons).toFixed(2) + '° to ' + Math.max(...westLons).toFixed(2) + '°');
-                console.log('  Eastern hemisphere: ' + Math.min(...eastLons).toFixed(2) + '° to ' + Math.max(...eastLons).toFixed(2) + '°');
+                console.log('  Latitude:', Math.min(...lats).toFixed(2), '° to', Math.max(...lats).toFixed(2), '°');
+                console.log('  Longitude:', Math.min(...lons).toFixed(2), '° to', Math.max(...lons).toFixed(2), '°');
+                console.log('  Span:', (Math.max(...lons) - Math.min(...lons)).toFixed(1), '°');
                 console.log();
 
-                // Check alignment for western region
-                if (data.western) {
-                    var westBounds = data.western.bounds;
-                    var westBoundaryLons = westLons.filter(lon => lon >= westBounds[0] && lon <= westBounds[2]);
-                    if (westBoundaryLons.length > 0) {
-                        var westDiff = Math.abs(Math.min(...westBoundaryLons) - westBounds[0]) +
-                                      Math.abs(Math.max(...westBoundaryLons) - westBounds[2]);
-                        console.log('Western region alignment: ' + westDiff.toFixed(2) + '° difference');
-                        if (westDiff < 1) {
-                            console.log('  ✓ GOOD alignment');
-                        }
-                    }
-                }
+                // Check alignment
+                var lonDiff = Math.abs(Math.min(...lons) - west) + Math.abs(Math.max(...lons) - east);
+                var latDiff = Math.abs(Math.min(...lats) - south) + Math.abs(Math.max(...lats) - north);
+                var totalDiff = lonDiff + latDiff;
 
-                // Check alignment for eastern region
-                if (data.eastern) {
-                    var eastBounds = data.eastern.bounds;
-                    var eastBoundaryLons = eastLons.filter(lon => lon >= eastBounds[0] && lon <= eastBounds[2]);
-                    if (eastBoundaryLons.length > 0) {
-                        var eastDiff = Math.abs(Math.min(...eastBoundaryLons) - eastBounds[0]) +
-                                      Math.abs(Math.max(...eastBoundaryLons) - eastBounds[2]);
-                        console.log('Eastern region alignment: ' + eastDiff.toFixed(2) + '° difference');
-                        if (eastDiff < 1) {
-                            console.log('  ✓ GOOD alignment');
-                        }
-                    }
+                console.log('Alignment check:', totalDiff.toFixed(2), '° difference');
+                if (totalDiff < 1) {
+                    console.log('✓ EXCELLENT alignment!');
+                } else if (totalDiff < 5) {
+                    console.log('✓ Good alignment');
+                } else {
+                    console.log('⚠ Alignment could be better');
                 }
-
                 console.log();
 
                 // Update status
@@ -198,12 +166,16 @@
                     '<span class="status">✓ Loaded</span><br>' +
                     'Variable: ' + data._metadata.variable + '<br>' +
                     'Date: ' + data._metadata.date.substring(0, 10) + '<br>' +
-                    'Regions: ' + data._metadata.split_regions + ' (split at dateline)<br>' +
-                    'Alignment: Properly reprojected';
+                    'Span: ' + data._metadata.longitude_span + '<br>' +
+                    'Bounds: Russia → Alaska (continuous)';
+
+                // Fit map to bounds
+                map.fitBounds(imageBounds);
 
                 console.log('='.repeat(80));
                 console.log('SUCCESS!');
-                console.log('HRRR Alaska with proper alignment - split at dateline');
+                console.log('HRRR Alaska with continuous bounds from Russia to Alaska');
+                console.log('No world-wrapping - just ' + data._metadata.longitude_span + ' span!');
                 console.log('='.repeat(80));
 
             })
