@@ -51,7 +51,10 @@
         <div id="status">Loading...</div>
         <div style="margin-top: 10px; font-size: 11px; color: #666;">
             Russia → Alaska<br>
-            Continuous bounds (no world-wrap)
+            Continuous bounds (no world-wrap)<br><br>
+            <strong>Borders:</strong><br>
+            <span style="color: #00ffff;">━━━</span> Cyan (dashed) = Image bounds<br>
+            <span style="color: #00ff00;">━━━</span> Green (solid) = Grid boundary
         </div>
     </div>
 
@@ -123,18 +126,31 @@
                 console.log('✓ Image overlay added');
                 console.log();
 
-                // Add boundary polygon with visible stroke
+                // Add rectangle showing actual image bounds (cyan)
+                L.rectangle(imageBounds, {
+                    color: '#00ffff',  // Cyan for image bounds
+                    weight: 3,
+                    fillOpacity: 0,
+                    interactive: false,
+                    opacity: 1.0,
+                    dashArray: '10, 5'  // Dashed line to distinguish from grid boundary
+                }).addTo(map);
+
+                console.log('✓ Image bounds rectangle added (cyan, dashed)');
+                console.log();
+
+                // Add boundary polygon with visible stroke (green)
                 var boundaryCoords = data.boundary_polygon.map(p => [p.lat, p.lon]);
 
                 L.polygon(boundaryCoords, {
-                    color: '#00ff00',  // Bright green for visibility
+                    color: '#00ff00',  // Bright green for grid boundary
                     weight: 4,         // Thicker line
                     fillOpacity: 0,
                     interactive: false,
                     opacity: 1.0       // Full opacity
                 }).addTo(map);
 
-                console.log('✓ Boundary polygon added (' + boundaryCoords.length + ' points)');
+                console.log('✓ Grid boundary polygon added (green, solid) - ' + boundaryCoords.length + ' points');
                 console.log();
 
                 // Get boundary extent
